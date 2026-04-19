@@ -1,17 +1,5 @@
 import { apiCall as sharedApiCall, SESSION_KEY } from "./apiUtils";
 
-// ─── API 配置 ──────────────────────────────────────────
-
-const getApiBase = () => {
-  if (import.meta.env.VITE_API_BASE) return import.meta.env.VITE_API_BASE;
-  if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
-    return "http://localhost:8000";
-  }
-  return `${window.location.protocol}//${window.location.hostname}:8000`;
-};
-
-const API_BASE = getApiBase();
-
 function notifyAuthExpired() {
   localStorage.removeItem(SESSION_KEY);
   window.dispatchEvent(new Event("storage"));

@@ -5,19 +5,19 @@
  */
 
 // 动态获取 API 地址：优先使用环境变量，否则使用当前域名
-const getApiBase = () => {
-  if (import.meta.env.VITE_API_BASE) {
-    return import.meta.env.VITE_API_BASE;
-  }
-  // 开发环境使用 localhost:8000
-  if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
-    return "http://localhost:8000";
-  }
-  // 其他环境使用当前访问的地址
-  return `${window.location.protocol}//${window.location.hostname}:8000`;
-};
+// const getApiBase = () => {
+//   if (import.meta.env.VITE_API_BASE) {
+//     return import.meta.env.VITE_API_BASE;
+//   }
+//   // 开发环境使用 localhost:8000
+//   if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+//     return "http://localhost:8000";
+//   }
+//   // 其他环境使用当前访问的地址
+//   return `${window.location.protocol}//${window.location.hostname}:8000`;
+// };
 
-const API_BASE = getApiBase();
+// const API_BASE = getApiBase();
 
 // ─── Types ──────────────────────────────────────────────
 
@@ -92,7 +92,7 @@ async function apiCall<T>(
     (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
   }
   
-  const response = await fetch(`${API_BASE}${endpoint}`, {
+  const response = await fetch(`${endpoint}`, {
     ...options,
     headers,
   });
