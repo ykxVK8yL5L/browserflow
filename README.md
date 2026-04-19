@@ -12,6 +12,10 @@ pnpm run build
 cd ../backend
 uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
+## Docker运行
+```
+docker run --name browserflow -d -p 8000:8000 -v $(pwd):/app/backend/data ghcr.io/ykxvk8yl5l/browserflow/browserflow:latest
+```
 
 ## 文档
 
