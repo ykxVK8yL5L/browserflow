@@ -1,12 +1,12 @@
-const getApiBase = () => {
-  if (import.meta.env.VITE_API_BASE) return import.meta.env.VITE_API_BASE;
-  if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
-    return "http://localhost:8000";
-  }
-  return `${window.location.protocol}//${window.location.hostname}:8000`;
-};
+// const getApiBase = () => {
+//   if (import.meta.env.VITE_API_BASE) return import.meta.env.VITE_API_BASE;
+//   if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+//     return "http://localhost:8000";
+//   }
+//   return `${window.location.protocol}//${window.location.hostname}:8000`;
+// };
 
-const API_BASE = getApiBase();
+// const API_BASE = getApiBase();
 
 async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const sessionStr = localStorage.getItem("bf_session");
@@ -18,7 +18,7 @@ async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<
   };
   if (token) (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
   
-  const response = await fetch(`${API_BASE}${endpoint}`, { ...options, headers });
+  const response = await fetch(`${endpoint}`, { ...options, headers });
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: "Request failed" }));
     throw new Error(error.detail || "Request failed");
@@ -64,7 +64,7 @@ export async function uploadIdentityState(formData: FormData): Promise<Identity>
   const headers: HeadersInit = {};
   if (token) (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
   
-  const response = await fetch(`${API_BASE}/api/identities/upload`, {
+  const response = await fetch(`/api/identities/upload`, {
     method: "POST",
     headers,
     body: formData,
