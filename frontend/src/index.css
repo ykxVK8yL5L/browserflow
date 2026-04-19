@@ -1,0 +1,169 @@
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 20% 7%;
+    --foreground: 210 20% 90%;
+
+    --card: 220 18% 10%;
+    --card-foreground: 210 20% 90%;
+
+    --popover: 220 18% 10%;
+    --popover-foreground: 210 20% 90%;
+
+    --primary: 185 80% 55%;
+    --primary-foreground: 220 20% 7%;
+
+    --secondary: 220 15% 15%;
+    --secondary-foreground: 210 20% 80%;
+
+    --muted: 220 15% 13%;
+    --muted-foreground: 215 15% 50%;
+
+    --accent: 280 70% 60%;
+    --accent-foreground: 210 20% 95%;
+
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 220 15% 18%;
+    --input: 220 15% 18%;
+    --ring: 185 80% 55%;
+
+    --radius: 0.5rem;
+    --node-default: 210 70% 55%; /* 默认节点颜色 */
+    --node-navigate: 185 80% 55%;
+    --node-click: 35 90% 55%;
+    --node-cookie: 210 70% 55%;
+    --node-localstorage: 210 70% 55%;
+    --node-type: 280 70% 60%;
+    --node-wait: 280 70% 60%;
+    --node-screenshot: 340 75% 55%;
+    --node-scroll: 210 70% 55%;
+    --node-foreach: 185 80% 55%;
+    --node-while: 230 72% 48%;
+    --node-for: 222 82% 62%;
+    --node-check_existence: 35 90% 55%;
+
+    --node-locator: 210 85% 60%;
+    --node-count: 25 90% 55%;
+    --node-all: 280 70% 65%;
+    --node-first: 210 70% 55%;
+    --node-last: 340 75% 60%;
+    --node-nth: 50 90% 55%;
+    --node-map: 190 80% 55%;
+    --node-textContent: 220 20% 70%;
+    --node-innerText: 200 25% 65%;
+    --node-inputValue: 30 85% 60%;
+    --node-getAttribute: 260 60% 65%;
+    --node-isVisible: 30 85% 60%;
+    --node-isEnabled: 35 85% 55%;
+    --node-isChecked: 35 90% 55%;
+    --node-hover: 200 90% 60%;
+    --node-check: 260 70% 60%;
+    --node-uncheck: 0 80% 60%;
+    --node-cookie: 35 85% 55%;
+    --node-localstorage: 45 80% 50%;
+    --node-if: 260 70% 60%;
+    --node-extract: 180 75% 50%;
+    --node-break: 0 75% 55%;
+    --node-continue: 210 70% 55%;
+    --node-stop: 350 85% 55%;
+    --node-set: 300 65% 60%;
+    --node-document: 210 25% 75%;
+    --node-title: 280 50% 70%;
+    --node-url: 200 60% 60%;
+    --node-content: 190 30% 65%;
+    --node-viewport: 220 40% 70%;
+    --node-press: 15 85% 55%;
+    --node-selectOption: 45 90% 55%;
+    --node-waitFor: 210 15% 65%;
+    --node-waitForURL: 188 85% 56%;
+    --node-waitForLoadState: 32 88% 58%;
+    --node-httpRequest: 195 85% 58%;
+    --node-file: 28 88% 60%;
+    --node-mouse: 330 78% 62%;
+    --node-ocrCaptcha: 268 78% 65%;
+    --node-sliderCaptcha: 14 86% 62%;
+    --node-script: 270 78% 66%;
+    --node-newPage: 200 60% 60%;
+    --node-switchPage: 205 82% 60%;
+    --node-closePage: 0 78% 62%;
+
+    --sidebar-background: 220 18% 9%;
+    --sidebar-foreground: 210 20% 80%;
+    --sidebar-primary: 185 80% 55%;
+    --sidebar-primary-foreground: 220 20% 7%;
+    --sidebar-accent: 220 15% 13%;
+    --sidebar-accent-foreground: 210 20% 90%;
+    --sidebar-border: 220 15% 18%;
+    --sidebar-ring: 185 80% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    /* 移动端优化：禁止字体大小自动调整 */
+    -webkit-text-size-adjust: 100%;
+    /* 优化触摸滚动 */
+    -webkit-overflow-scrolling: touch;
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+    /* 移动端优化：防止页面缩放 */
+    overscroll-behavior: none;
+  }
+}
+
+/* React Flow overrides */
+.react-flow__background {
+  background-color: hsl(var(--background)) !important;
+}
+
+.react-flow__controls button {
+  background-color: hsl(var(--card)) !important;
+  border-color: hsl(var(--border)) !important;
+  color: hsl(var(--foreground)) !important;
+  fill: hsl(var(--foreground)) !important;
+}
+
+.react-flow__controls button:hover {
+  background-color: hsl(var(--secondary)) !important;
+}
+
+.react-flow__minimap {
+  background-color: hsl(var(--card)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  border-radius: var(--radius);
+}
+
+.react-flow__edge-path {
+  stroke: hsl(var(--primary)) !important;
+  stroke-width: 2;
+}
+
+.react-flow__connection-line {
+  stroke: hsl(var(--primary) / 0.5) !important;
+  stroke-width: 2;
+}
+
+@keyframes glow-pulse {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.glow-pulse {
+  animation: glow-pulse 2s ease-in-out infinite;
+}

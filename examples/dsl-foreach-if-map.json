@@ -1,0 +1,240 @@
+{
+  "name": "DSL Foreach If Map Example",
+  "description": "Use all + foreach + if + map to process button locators through a child chain",
+  "nodes": [
+    {
+      "id": "node_init_results",
+      "type": "set",
+      "position": { "x": 40, "y": 260 },
+      "data": {
+        "label": "Init Results",
+        "nodeType": "set",
+        "captureScreenshot": false,
+        "params": {
+          "variableName": "results",
+          "operation": "set",
+          "valueType": "array",
+          "value": "[]"
+        },
+        "inputs": {},
+        "outputType": "object"
+      }
+    },
+    {
+      "id": "node_locator",
+      "type": "locator",
+      "position": { "x": 100, "y": 120 },
+      "data": {
+        "label": "Buttons",
+        "nodeType": "locator",
+        "captureScreenshot": false,
+        "params": {
+          "selector": "button",
+          "selectorType": "css"
+        },
+        "inputs": {},
+        "outputType": "locator",
+        "selector": "button",
+        "selectorType": "css"
+      }
+    },
+    {
+      "id": "node_all",
+      "type": "all",
+      "position": { "x": 340, "y": 120 },
+      "data": {
+        "label": "All Buttons",
+        "nodeType": "all",
+        "captureScreenshot": false,
+        "params": {},
+        "inputs": {
+          "target": { "from": "node_locator" }
+        },
+        "outputType": "locator[]"
+      }
+    },
+    {
+      "id": "node_foreach",
+      "type": "foreach",
+      "position": { "x": 600, "y": 120 },
+      "data": {
+        "label": "For Each Button",
+        "nodeType": "foreach",
+        "captureScreenshot": false,
+        "params": {
+          "itemName": "btn"
+        },
+        "inputs": {
+          "items": { "from": "node_all.items" }
+        },
+        "outputType": "array",
+        "itemName": "btn"
+      }
+    },
+    {
+      "id": "node_visible",
+      "type": "isVisible",
+      "position": { "x": 860, "y": 40 },
+      "data": {
+        "label": "Is Visible",
+        "nodeType": "isVisible",
+        "captureScreenshot": false,
+        "params": {},
+        "inputs": {
+          "target": { "from": "btn" }
+        },
+        "outputType": "boolean"
+      }
+    },
+    {
+      "id": "node_if",
+      "type": "if",
+      "position": { "x": 1120, "y": 40 },
+      "data": {
+        "label": "Visible?",
+        "nodeType": "if",
+        "captureScreenshot": false,
+        "params": {
+          "operator": "truthy",
+          "value": "true",
+          "valueType": "boolean",
+          "condition": "True"
+        },
+        "inputs": {
+          "condition": { "from": "node_visible.result" }
+        },
+        "operator": "truthy",
+        "value": "true",
+        "valueType": "boolean"
+      }
+    },
+    {
+      "id": "node_map",
+      "type": "map",
+      "position": { "x": 1380, "y": 0 },
+      "data": {
+        "label": "Map Visible Button",
+        "nodeType": "map",
+        "captureScreenshot": false,
+        "params": {
+          "itemName": "el",
+          "expression": "el => ({ index: el.index, selector: el.selector, visible: true })"
+        },
+        "inputs": {
+          "items": { "from": "node_foreach.items" }
+        },
+        "outputType": "array",
+        "itemName": "el",
+        "expression": "el => ({ index: el.index, selector: el.selector, visible: true })"
+      }
+    },
+    {
+      "id": "node_append_result",
+      "type": "set",
+      "position": { "x": 1640, "y": 0 },
+      "data": {
+        "label": "Append Result",
+        "nodeType": "set",
+        "captureScreenshot": false,
+        "params": {
+          "variableName": "results",
+          "operation": "append",
+          "valueType": "auto"
+        },
+        "inputs": {
+          "value": { "from": "node_map.result" }
+        },
+        "outputType": "object"
+      }
+    },
+    {
+      "id": "node_collect_done",
+      "type": "map",
+      "position": { "x": 900, "y": 300 },
+      "data": {
+        "label": "Read Results",
+        "nodeType": "map",
+        "captureScreenshot": false,
+        "params": {
+          "expression": "vars.results"
+        },
+        "inputs": {},
+        "outputType": "array"
+      }
+    },
+    {
+      "id": "node_stop",
+      "type": "stop",
+      "position": { "x": 1380, "y": 140 },
+      "data": {
+        "label": "Skip Invisible",
+        "nodeType": "stop",
+        "captureScreenshot": false,
+        "params": {
+          "stopType": "success",
+          "errorMessage": "Invisible button skipped"
+        },
+        "inputs": {},
+        "stopType": "success",
+        "errorMessage": "Invisible button skipped"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e_init_locator",
+      "source": "node_init_results",
+      "target": "node_locator"
+    },
+    {
+      "id": "e_locator_all",
+      "source": "node_locator",
+      "target": "node_all"
+    },
+    {
+      "id": "e_all_foreach",
+      "source": "node_all",
+      "target": "node_foreach"
+    },
+    {
+      "id": "e_foreach_visible",
+      "source": "node_foreach",
+      "sourceHandle": "body",
+      "target": "node_visible"
+    },
+    {
+      "id": "e_visible_if",
+      "source": "node_visible",
+      "target": "node_if"
+    },
+    {
+      "id": "e_if_true_map",
+      "source": "node_if",
+      "sourceHandle": "true",
+      "target": "node_map",
+      "data": {
+        "condition": "true"
+      }
+    },
+    {
+      "id": "e_map_append",
+      "source": "node_map",
+      "target": "node_append_result"
+    },
+    {
+      "id": "e_if_false_stop",
+      "source": "node_if",
+      "sourceHandle": "false",
+      "target": "node_stop",
+      "data": {
+        "condition": "false"
+      }
+    },
+    {
+      "id": "e_foreach_done_collect",
+      "source": "node_foreach",
+      "sourceHandle": "done",
+      "target": "node_collect_done"
+    }
+  ]
+}

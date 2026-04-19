@@ -1,0 +1,615 @@
+{
+  "name": "z.org注册",
+  "description": "",
+  "nodes": [
+    {
+      "id": "node_1776292517234",
+      "type": "navigate",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "Navigate",
+        "nodeType": "navigate",
+        "params": {
+          "url": "https://z.org/register"
+        },
+        "inputs": {},
+        "url": "https://z.org/register",
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 0
+      },
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "node_1776292517235",
+      "type": "wait",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "Wait",
+        "nodeType": "wait",
+        "params": {
+          "duration": 10000
+        },
+        "inputs": {},
+        "outputType": "void",
+        "duration": 10000,
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 0
+      },
+      "position": {
+        "x": 0,
+        "y": 160
+      }
+    },
+    {
+      "id": "node_1776292517236",
+      "type": "set",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "创建账号信息",
+        "nodeType": "set",
+        "params": {
+          "variableName": "user",
+          "operation": "set",
+          "valueType": "object",
+          "value": "{\"username\":\"${random.alnum(12)}\",\"password\":\"${random.ms_password(12)}\"}"
+        },
+        "inputs": {},
+        "outputType": "object",
+        "variableName": "user",
+        "operation": "set",
+        "valueType": "object",
+        "value": "{\"username\":\"${random.alnum(12)}\",\"password\":\"${random.ms_password(12)}\"}",
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 1000
+      },
+      "position": {
+        "x": 0,
+        "y": 320
+      }
+    },
+    {
+      "id": "node_1776292517237",
+      "type": "file",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "写入文件",
+        "nodeType": "file",
+        "params": {
+          "action": "write",
+          "path": "z_org-${user.username}.json",
+          "content": "${user}",
+          "encoding": "utf-8",
+          "createDirectories": "true",
+          "overwrite": "true"
+        },
+        "inputs": {},
+        "outputType": "object",
+        "action": "write",
+        "path": "z_org-${user.username}.json",
+        "content": "${user}",
+        "encoding": "utf-8",
+        "createDirectories": "true",
+        "overwrite": "true",
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 2000
+      },
+      "position": {
+        "x": 0,
+        "y": 480
+      }
+    },
+    {
+      "id": "node_1776294594403",
+      "type": "type",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "输入用户名",
+        "nodeType": "type",
+        "params": {
+          "selectorType": "native",
+          "selector": "#register-form_username",
+          "text": "${user.username}",
+          "delay": 0,
+          "timeout": 30000
+        },
+        "inputs": {},
+        "outputType": "void",
+        "selectorType": "native",
+        "selector": "#register-form_username",
+        "text": "${user.username}",
+        "delay": 0,
+        "timeout": 30000,
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 1000
+      },
+      "position": {
+        "x": 0,
+        "y": 640
+      }
+    },
+    {
+      "id": "node_1776294594404",
+      "type": "type",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "输入密码",
+        "nodeType": "type",
+        "params": {
+          "selectorType": "native",
+          "selector": "#register-form_password",
+          "text": "${user.password}",
+          "delay": 0,
+          "timeout": 30000
+        },
+        "inputs": {},
+        "outputType": "void",
+        "selectorType": "native",
+        "selector": "#register-form_password",
+        "text": "${user.password}",
+        "delay": 0,
+        "timeout": 30000,
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 1000
+      },
+      "position": {
+        "x": 0,
+        "y": 800
+      }
+    },
+    {
+      "id": "node_1776294594405",
+      "type": "type",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "再次确认密码",
+        "nodeType": "type",
+        "params": {
+          "selectorType": "native",
+          "selector": "#register-form_password_confirmation",
+          "text": "${user.password}",
+          "delay": 0,
+          "timeout": 30000
+        },
+        "inputs": {},
+        "outputType": "void",
+        "selectorType": "native",
+        "selector": "#register-form_password_confirmation",
+        "text": "${user.password}",
+        "delay": 0,
+        "timeout": 30000,
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 1000
+      },
+      "position": {
+        "x": 0,
+        "y": 960
+      }
+    },
+    {
+      "id": "node_1776294594406",
+      "type": "click",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "勾选同意",
+        "nodeType": "click",
+        "params": {
+          "selectorType": "native",
+          "selector": "input[type='checkbox']",
+          "button": "left",
+          "clickCount": 1,
+          "timeout": 30000
+        },
+        "inputs": {},
+        "outputType": "void",
+        "selectorType": "native",
+        "selector": "input[type='checkbox']",
+        "button": "left",
+        "clickCount": 1,
+        "timeout": 30000,
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 1000
+      },
+      "position": {
+        "x": 0,
+        "y": 1120
+      }
+    },
+    {
+      "id": "node_1776294594408",
+      "type": "press",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "切换焦点至cf选择框",
+        "nodeType": "press",
+        "params": {
+          "selectorType": "native",
+          "selector": "",
+          "key": "Tab",
+          "delay": 0,
+          "timeout": 30000
+        },
+        "inputs": {},
+        "outputType": "void",
+        "selectorType": "native",
+        "selector": "",
+        "key": "Tab",
+        "delay": 0,
+        "timeout": 30000,
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 1000
+      },
+      "position": {
+        "x": 0,
+        "y": 1280
+      }
+    },
+    {
+      "id": "node_1776294594409",
+      "type": "press",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "切换焦点至cf选择框",
+        "nodeType": "press",
+        "params": {
+          "selectorType": "native",
+          "selector": "",
+          "key": "Tab",
+          "delay": 0,
+          "timeout": 30000
+        },
+        "inputs": {},
+        "outputType": "void",
+        "selectorType": "native",
+        "selector": "",
+        "key": "Tab",
+        "delay": 0,
+        "timeout": 30000,
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 1000
+      },
+      "position": {
+        "x": 0,
+        "y": 1600
+      }
+    },
+    {
+      "id": "node_1776294594410",
+      "type": "press",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "勾选CF机器人验证",
+        "nodeType": "press",
+        "params": {
+          "selectorType": "native",
+          "selector": "",
+          "key": "Space",
+          "delay": 0,
+          "timeout": 30000
+        },
+        "inputs": {},
+        "outputType": "void",
+        "selectorType": "native",
+        "selector": "",
+        "key": "Space",
+        "delay": 0,
+        "timeout": 30000,
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 3000
+      },
+      "position": {
+        "x": 0,
+        "y": 1760
+      }
+    },
+    {
+      "id": "node_1776294594411",
+      "type": "press",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "切换焦点至cf选择框",
+        "nodeType": "press",
+        "params": {
+          "selectorType": "native",
+          "selector": "",
+          "key": "Tab",
+          "delay": 0,
+          "timeout": 30000
+        },
+        "inputs": {},
+        "outputType": "void",
+        "selectorType": "native",
+        "selector": "",
+        "key": "Tab",
+        "delay": 0,
+        "timeout": 30000,
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 1000
+      },
+      "position": {
+        "x": 0,
+        "y": 1440
+      }
+    },
+    {
+      "id": "node_1776294594412",
+      "type": "click",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "点击创建用户",
+        "nodeType": "click",
+        "params": {
+          "selectorType": "native",
+          "selector": "button:has-text('Create account')",
+          "button": "middle",
+          "clickCount": 1,
+          "timeout": 30000
+        },
+        "inputs": {},
+        "outputType": "void",
+        "selectorType": "native",
+        "selector": "button:has-text('Create account')",
+        "button": "middle",
+        "clickCount": 1,
+        "timeout": 30000,
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 3000
+      },
+      "position": {
+        "x": 0,
+        "y": 1920
+      }
+    },
+    {
+      "id": "node_1776294594413",
+      "type": "waitFor",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "Wait For Element",
+        "nodeType": "waitFor",
+        "params": {
+          "selectorType": "native",
+          "selector": "h1:has-text('Welcome!')",
+          "state": "attached",
+          "timeout": 30000
+        },
+        "inputs": {},
+        "outputType": "void",
+        "selectorType": "native",
+        "selector": "h1:has-text('Welcome!')",
+        "state": "attached",
+        "timeout": 30000,
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 3000
+      },
+      "position": {
+        "x": 0,
+        "y": 2080
+      }
+    },
+    {
+      "id": "node_1776294594415",
+      "type": "wait",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "Wait",
+        "nodeType": "wait",
+        "params": {
+          "duration": 3000
+        },
+        "inputs": {},
+        "outputType": "void",
+        "duration": 3000,
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 0
+      },
+      "position": {
+        "x": 0,
+        "y": 2400
+      }
+    },
+    {
+      "id": "node_1776294594416",
+      "type": "click",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "Click",
+        "nodeType": "click",
+        "params": {
+          "selectorType": "native",
+          "selector": "button:has-text('Skip Setup')",
+          "button": "middle",
+          "clickCount": 1,
+          "timeout": 30000
+        },
+        "inputs": {},
+        "outputType": "void",
+        "selectorType": "native",
+        "selector": "button:has-text('Skip Setup')",
+        "button": "middle",
+        "clickCount": 1,
+        "timeout": 30000,
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 0
+      },
+      "position": {
+        "x": 0,
+        "y": 2240
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "xy-edge__node_1776292517234-node_1776292517235",
+      "source": "node_1776292517234",
+      "target": "node_1776292517235",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1776292517235-node_1776292517236",
+      "source": "node_1776292517235",
+      "target": "node_1776292517236",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1776292517236-node_1776292517237",
+      "source": "node_1776292517236",
+      "target": "node_1776292517237",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1776292517237-node_1776294594403",
+      "source": "node_1776292517237",
+      "target": "node_1776294594403",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1776294594403-node_1776294594404",
+      "source": "node_1776294594403",
+      "target": "node_1776294594404",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1776294594404-node_1776294594405",
+      "source": "node_1776294594404",
+      "target": "node_1776294594405",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1776294594405-node_1776294594406",
+      "source": "node_1776294594405",
+      "target": "node_1776294594406",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1776294594406-node_1776294594408",
+      "source": "node_1776294594406",
+      "target": "node_1776294594408",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1776294594409-node_1776294594410",
+      "source": "node_1776294594409",
+      "target": "node_1776294594410",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1776294594408-node_1776294594411",
+      "source": "node_1776294594408",
+      "target": "node_1776294594411",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1776294594411-node_1776294594409",
+      "source": "node_1776294594411",
+      "target": "node_1776294594409",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1776294594410-node_1776294594412",
+      "source": "node_1776294594410",
+      "target": "node_1776294594412",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1776294594412-node_1776294594413",
+      "source": "node_1776294594412",
+      "target": "node_1776294594413",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1776294594413-node_1776294594416",
+      "source": "node_1776294594413",
+      "target": "node_1776294594416",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1776294594416-node_1776294594415",
+      "source": "node_1776294594416",
+      "target": "node_1776294594415",
+      "sourceHandle": null,
+      "targetHandle": null
+    }
+  ],
+  "exportedAt": "2026-04-15T23:53:32.286Z"
+}

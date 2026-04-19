@@ -1,0 +1,97 @@
+import { UserRound } from "lucide-react";
+import { type NodeTypeConfig } from "../nodeTypes";
+
+const FakerNode: NodeTypeConfig = {
+  type: "faker",
+  label: "Faker",
+  icon: UserRound,
+  color: "node-Set",
+  description: "使用 Faker 生成假数据（封装为单节点调用，支持 locale/seed/unique/kwargs）",
+  outputType: "object",
+  fields: [
+    {
+      key: "preset",
+      label: "Preset",
+      type: "select",
+      options: [
+        { label: "(Custom Method)", value: "" },
+        { label: "Full Name", value: "name" },
+        { label: "First Name", value: "first_name" },
+        { label: "Last Name", value: "last_name" },
+        { label: "Email", value: "email" },
+        { label: "Username", value: "user_name" },
+        { label: "Phone Number", value: "phone_number" },
+        { label: "Address", value: "address" },
+        { label: "Company", value: "company" },
+        { label: "Job", value: "job" },
+        { label: "IPv4", value: "ipv4" },
+        { label: "URL", value: "url" },
+        { label: "UUID4", value: "uuid4" },
+      ],
+      defaultValue: "",
+      valueSource: "params",
+    },
+    {
+      key: "methodName",
+      label: "Method Name",
+      type: "text",
+      placeholder: "name / email / address / ...",
+      defaultValue: "name",
+      valueSource: "params",
+    },
+    {
+      key: "locale",
+      label: "Locale (optional)",
+      type: "text",
+      placeholder: "zh_CN / en_US / ... (empty = default)",
+      defaultValue: "",
+      valueSource: "params",
+    },
+    {
+      key: "count",
+      label: "Count",
+      type: "number",
+      placeholder: "1",
+      defaultValue: 1,
+      valueSource: "params",
+    },
+    {
+      key: "unique",
+      label: "Unique",
+      type: "select",
+      options: [
+        { label: "False", value: "false" },
+        { label: "True", value: "true" },
+      ],
+      defaultValue: "false",
+      valueSource: "params",
+    },
+    {
+      key: "seed",
+      label: "Seed (optional)",
+      type: "number",
+      placeholder: "4321",
+      defaultValue: "",
+      valueSource: "params",
+    },
+    {
+      key: "kwargs",
+      label: "Kwargs (object, optional)",
+      type: "text",
+      placeholder: '{"min_chars": 10}',
+      defaultValue: "",
+      valueSource: "params",
+    },
+    {
+      key: "variableName",
+      label: "Save To Variable",
+      type: "text",
+      placeholder: "fakeValue",
+      defaultValue: "",
+      valueSource: "params",
+    },
+  ],
+  subtitle: "{methodName} × {count}",
+};
+
+export default FakerNode;

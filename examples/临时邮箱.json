@@ -1,0 +1,260 @@
+{
+  "name": "临时邮箱",
+  "description": "",
+  "nodes": [
+    {
+      "id": "node_1775980436061",
+      "type": "navigate",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "Navigate",
+        "nodeType": "navigate",
+        "params": {
+          "url": "https://tempmail.lol/"
+        },
+        "inputs": {},
+        "url": "https://tempmail.lol/",
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 10000
+      },
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "node_1775980436062",
+      "type": "check_existence",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "Check Existence",
+        "nodeType": "check_existence",
+        "params": {
+          "timeout": 30000,
+          "selector": "div.captcha"
+        },
+        "inputs": {},
+        "timeout": 30000,
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 0,
+        "selector": "div.captcha"
+      },
+      "position": {
+        "x": 0,
+        "y": 160
+      }
+    },
+    {
+      "id": "node_1775980436064",
+      "type": "click",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "Click",
+        "nodeType": "click",
+        "params": {
+          "selectorType": "native",
+          "selector": "div.captcha",
+          "button": "left",
+          "clickCount": 1,
+          "timeout": 30000
+        },
+        "inputs": {},
+        "outputType": "void",
+        "selectorType": "native",
+        "selector": "div.captcha",
+        "button": "left",
+        "clickCount": 1,
+        "timeout": 30000,
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 5000
+      },
+      "position": {
+        "x": -230,
+        "y": 320
+      }
+    },
+    {
+      "id": "node_1775980436065",
+      "type": "press",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "Press Key",
+        "nodeType": "press",
+        "params": {
+          "selectorType": "native",
+          "selector": "",
+          "key": "Tab",
+          "delay": 0,
+          "timeout": 30000
+        },
+        "inputs": {},
+        "outputType": "void",
+        "selectorType": "native",
+        "selector": "",
+        "key": "Tab",
+        "delay": 0,
+        "timeout": 30000,
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 2000
+      },
+      "position": {
+        "x": -230,
+        "y": 480
+      }
+    },
+    {
+      "id": "node_1775980436066",
+      "type": "press",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "Press Key",
+        "nodeType": "press",
+        "params": {
+          "selectorType": "native",
+          "selector": "",
+          "key": "Space",
+          "delay": 0,
+          "timeout": 30000
+        },
+        "inputs": {},
+        "outputType": "void",
+        "selectorType": "native",
+        "selector": "",
+        "key": "Space",
+        "delay": 0,
+        "timeout": 30000,
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 10000
+      },
+      "position": {
+        "x": -230,
+        "y": 640
+      }
+    },
+    {
+      "id": "node_1775980436067",
+      "type": "innerText",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "Inner Text",
+        "nodeType": "innerText",
+        "params": {
+          "selectorType": "native",
+          "selector": "p.email-address"
+        },
+        "inputs": {},
+        "outputType": "string",
+        "selectorType": "native",
+        "selector": "p.email-address",
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 3000,
+        "waitAfterMs": 3000
+      },
+      "position": {
+        "x": 0,
+        "y": 800
+      }
+    },
+    {
+      "id": "node_1775980436068",
+      "type": "stop",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "Stop",
+        "nodeType": "stop",
+        "params": {
+          "stopType": "success",
+          "errorMessage": "${node_1775980436067.result}"
+        },
+        "inputs": {},
+        "stopType": "success",
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 0,
+        "errorMessage": "${node_1775980436067.result}"
+      },
+      "position": {
+        "x": 0,
+        "y": 960
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "xy-edge__node_1775980436061-node_1775980436062",
+      "source": "node_1775980436061",
+      "target": "node_1775980436062",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1775980436062true-node_1775980436064",
+      "source": "node_1775980436062",
+      "target": "node_1775980436064",
+      "sourceHandle": "true",
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1775980436064-node_1775980436065",
+      "source": "node_1775980436064",
+      "target": "node_1775980436065",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1775980436065-node_1775980436066",
+      "source": "node_1775980436065",
+      "target": "node_1775980436066",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1775980436066-node_1775980436067",
+      "source": "node_1775980436066",
+      "target": "node_1775980436067",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1775980436062false-node_1775980436067",
+      "source": "node_1775980436062",
+      "target": "node_1775980436067",
+      "sourceHandle": "false",
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1775980436067-node_1775980436068",
+      "source": "node_1775980436067",
+      "target": "node_1775980436068",
+      "sourceHandle": null,
+      "targetHandle": null
+    }
+  ],
+  "exportedAt": "2026-04-12T08:49:08.041Z"
+}

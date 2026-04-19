@@ -1,0 +1,107 @@
+{
+  "name": "DSL Map Title URL Example",
+  "description": "Collect locator list, map basic fields, and read page title/url",
+  "nodes": [
+    {
+      "id": "node_locator",
+      "type": "locator",
+      "position": { "x": 100, "y": 120 },
+      "data": {
+        "label": "Buttons",
+        "nodeType": "locator",
+        "captureScreenshot": false,
+        "params": {
+          "selector": "button",
+          "selectorType": "css"
+        },
+        "inputs": {},
+        "outputType": "locator",
+        "selector": "button",
+        "selectorType": "css"
+      }
+    },
+    {
+      "id": "node_all",
+      "type": "all",
+      "position": { "x": 340, "y": 120 },
+      "data": {
+        "label": "All Buttons",
+        "nodeType": "all",
+        "captureScreenshot": false,
+        "params": {},
+        "inputs": {
+          "target": { "from": "node_locator" }
+        },
+        "outputType": "locator[]"
+      }
+    },
+    {
+      "id": "node_map",
+      "type": "map",
+      "position": { "x": 600, "y": 120 },
+      "data": {
+        "label": "Map Buttons",
+        "nodeType": "map",
+        "captureScreenshot": false,
+        "params": {
+          "itemName": "el",
+          "expression": "el => ({ index: el.index, hasText: el.hasText })"
+        },
+        "inputs": {
+          "items": { "from": "node_all.items" }
+        },
+        "outputType": "array",
+        "itemName": "el",
+        "expression": "el => ({ index: el.index, hasText: el.hasText })"
+      }
+    },
+    {
+      "id": "node_title",
+      "type": "title",
+      "position": { "x": 340, "y": 300 },
+      "data": {
+        "label": "Page Title",
+        "nodeType": "title",
+        "captureScreenshot": false,
+        "params": {},
+        "inputs": {},
+        "outputType": "string"
+      }
+    },
+    {
+      "id": "node_url",
+      "type": "url",
+      "position": { "x": 600, "y": 300 },
+      "data": {
+        "label": "Page URL",
+        "nodeType": "url",
+        "captureScreenshot": false,
+        "params": {},
+        "inputs": {},
+        "outputType": "string"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e_locator_all",
+      "source": "node_locator",
+      "target": "node_all"
+    },
+    {
+      "id": "e_all_map",
+      "source": "node_all",
+      "target": "node_map"
+    },
+    {
+      "id": "e_map_title",
+      "source": "node_map",
+      "target": "node_title"
+    },
+    {
+      "id": "e_title_url",
+      "source": "node_title",
+      "target": "node_url"
+    }
+  ]
+}

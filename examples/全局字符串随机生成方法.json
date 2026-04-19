@@ -1,0 +1,109 @@
+{
+  "name": "全局字符串随机生成方法",
+  "description": "全局字符串随机生成方法",
+  "nodes": [
+    {
+      "id": "node_1776079158685",
+      "type": "navigate",
+      "nodeType": null,
+      "data": {
+        "label": "Navigate",
+        "nodeType": "navigate",
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "params": {
+          "url": "https://example.com"
+        },
+        "inputs": {},
+        "url": "https://example.com"
+      },
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "node_1776079158686",
+      "type": "set",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "Set",
+        "nodeType": "set",
+        "params": {
+          "variableName": "account",
+          "operation": "set",
+          "valueType": "object",
+          "value": "{\"username\":\"${random.alnum(12)}\",\"password\":\"${random.password(12, \"!@#$_-AGHJUILEBD\")}\"}"
+        },
+        "inputs": {},
+        "outputType": "object",
+        "variableName": "account",
+        "operation": "set",
+        "valueType": "object",
+        "value": "{\"username\":\"${random.alnum(12)}\",\"password\":\"${random.password(12, \"!@#$_-AGHJUILEBD\")}\"}",
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 1000
+      },
+      "position": {
+        "x": 0,
+        "y": 160
+      }
+    },
+    {
+      "id": "node_1776079158687",
+      "type": "file",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "File",
+        "nodeType": "file",
+        "params": {
+          "action": "write",
+          "path": "account_${account.username}.json",
+          "content": "${account}",
+          "encoding": "utf-8",
+          "createDirectories": "true",
+          "overwrite": "true"
+        },
+        "inputs": {},
+        "outputType": "object",
+        "action": "write",
+        "path": "account_${account.username}.json",
+        "content": "${account}",
+        "encoding": "utf-8",
+        "createDirectories": "true",
+        "overwrite": "true",
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 0
+      },
+      "position": {
+        "x": 0,
+        "y": 320
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "xy-edge__node_1776079158685-node_1776079158686",
+      "source": "node_1776079158685",
+      "target": "node_1776079158686",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1776079158686-node_1776079158687",
+      "source": "node_1776079158686",
+      "target": "node_1776079158687",
+      "sourceHandle": null,
+      "targetHandle": null
+    }
+  ],
+  "exportedAt": "2026-04-13T12:31:14.883Z"
+}

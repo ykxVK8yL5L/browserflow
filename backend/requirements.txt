@@ -1,0 +1,37 @@
+# FastAPI
+fastapi>=0.104.0
+uvicorn>=0.24.0
+uvicorn[standard]
+
+# 数据库
+sqlalchemy>=2.0.0
+
+# JWT
+python-jose[cryptography]>=3.3.0
+
+# OTP
+pyotp>=2.9.0
+
+# 密码哈希已使用内置 hashlib，无需 passlib
+
+# 其他
+pydantic[email]>=2.0.0
+python-multipart>=0.0.6
+
+# Playwright (如果需要)
+playwright>=1.40.0
+cloakbrowser>=0.3.18
+# 加密
+cryptography>=41.0.0
+
+# 其他
+python-dotenv>=1.0.0
+qrcode>=7.4
+httpx>=0.27.0
+ddddocr>=1.5.6
+apscheduler>=3.10.4
+webauthn
+
+# Fake data
+Faker>=40.0.0
+

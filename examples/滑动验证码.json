@@ -1,0 +1,143 @@
+{
+  "name": "滑动验证码",
+  "description": "",
+  "nodes": [
+    {
+      "id": "node_1775954415849",
+      "type": "navigate",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "Navigate",
+        "nodeType": "navigate",
+        "params": {
+          "url": "https://platform.ephone.chat/dashboard"
+        },
+        "inputs": {},
+        "url": "https://platform.ephone.chat/dashboard",
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 5000
+      },
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "node_1775971812699",
+      "type": "click",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "Click",
+        "nodeType": "click",
+        "params": {
+          "selectorType": "native",
+          "selector": "button:has-text('请完成验证')",
+          "button": "left",
+          "clickCount": 1,
+          "timeout": 30000
+        },
+        "inputs": {},
+        "outputType": "void",
+        "selectorType": "native",
+        "selector": "button:has-text('请完成验证')",
+        "button": "left",
+        "clickCount": 1,
+        "timeout": 30000,
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 20000
+      },
+      "position": {
+        "x": 0,
+        "y": 160
+      }
+    },
+    {
+      "id": "node_1775979123693",
+      "type": "sliderCaptcha",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "Slider Captcha",
+        "nodeType": "sliderCaptcha",
+        "params": {
+          "handleSelectorType": "native",
+          "handleSelector": "div[class^='gocaptcha-module_dragBlock_']",
+          "backgroundSelector": "img[class^='gocaptcha-module_picture']",
+          "sliderImageSelector": "div[class^='index-module_tile'] img",
+          "successSelector": "button:has-text('验证成功')",
+          "successText": "",
+          "retryTriggerSelector": "",
+          "refreshSelector": "",
+          "refreshTimeout": 5000,
+          "refreshWaitMs": 1500,
+          "offset": -10,
+          "minStep": 5,
+          "maxStep": 12,
+          "moveDelayMs": 20,
+          "overshoot": 8,
+          "backtrack": 2,
+          "holdBeforeReleaseMs": 100,
+          "waitAfterDragMs": 3000,
+          "successTimeout": 5000,
+          "maxRetry": 3
+        },
+        "inputs": {},
+        "outputType": "object",
+        "handleSelectorType": "native",
+        "handleSelector": "div[class^='gocaptcha-module_dragBlock_']",
+        "backgroundSelector": "img[class^='gocaptcha-module_picture']",
+        "sliderImageSelector": "div[class^='index-module_tile'] img",
+        "successSelector": "button:has-text('验证成功')",
+        "successText": "",
+        "retryTriggerSelector": "",
+        "refreshSelector": "",
+        "refreshTimeout": 5000,
+        "refreshWaitMs": 1500,
+        "offset": -10,
+        "minStep": 5,
+        "maxStep": 12,
+        "moveDelayMs": 20,
+        "overshoot": 8,
+        "backtrack": 2,
+        "holdBeforeReleaseMs": 100,
+        "waitAfterDragMs": 3000,
+        "successTimeout": 5000,
+        "maxRetry": 3,
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 10000
+      },
+      "position": {
+        "x": 0,
+        "y": 320
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "xy-edge__node_1775954415849-node_1775971812699",
+      "source": "node_1775954415849",
+      "target": "node_1775971812699",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1775971812699-node_1775979123693",
+      "source": "node_1775971812699",
+      "target": "node_1775979123693",
+      "sourceHandle": null,
+      "targetHandle": null
+    }
+  ],
+  "exportedAt": "2026-04-12T07:45:34.288Z"
+}

@@ -1,0 +1,73 @@
+{
+  "name": "DSL If Count Example",
+  "description": "Count buttons and evaluate whether count > 0",
+  "nodes": [
+    {
+      "id": "node_locator",
+      "type": "locator",
+      "position": { "x": 120, "y": 120 },
+      "data": {
+        "label": "Buttons",
+        "nodeType": "locator",
+        "captureScreenshot": false,
+        "params": {
+          "selector": "button",
+          "selectorType": "css"
+        },
+        "inputs": {},
+        "outputType": "locator",
+        "selector": "button",
+        "selectorType": "css"
+      }
+    },
+    {
+      "id": "node_count",
+      "type": "count",
+      "position": { "x": 380, "y": 120 },
+      "data": {
+        "label": "Count Buttons",
+        "nodeType": "count",
+        "captureScreenshot": false,
+        "params": {},
+        "inputs": {
+          "target": { "from": "node_locator" }
+        },
+        "outputType": "number"
+      }
+    },
+    {
+      "id": "node_if",
+      "type": "if",
+      "position": { "x": 640, "y": 120 },
+      "data": {
+        "label": "Has Buttons?",
+        "nodeType": "if",
+        "captureScreenshot": false,
+        "params": {
+          "operator": ">",
+          "value": "0",
+          "valueType": "number",
+          "condition": "True"
+        },
+        "inputs": {
+          "condition": { "from": "node_count.result" }
+        },
+        "operator": ">",
+        "value": "0",
+        "valueType": "number"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e_locator_count",
+      "source": "node_locator",
+      "target": "node_count"
+    },
+    {
+      "id": "e_count_if",
+      "source": "node_count",
+      "target": "node_if"
+    }
+  ]
+}
