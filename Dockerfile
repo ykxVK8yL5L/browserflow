@@ -46,6 +46,7 @@ RUN apt-get update \
 		libxfixes3 \
 		libxrandr2 \
 		xvfb \
+		xauth \
 		xdg-utils \
 	&& rm -rf /var/lib/apt/lists/*
 
