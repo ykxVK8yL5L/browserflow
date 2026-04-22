@@ -4,11 +4,11 @@ import { nodeRegistry } from "./nodes";
 export interface NodeField {
   key: string;
   label: string;
-  type: "text" | "number" | "select" | "list";
+  type: "text" | "number" | "select" | "list" | "checkbox";
   valueSource?: "data" | "params";
   placeholder?: string;
   options?: { label: string; value: string }[];
-  defaultValue?: string | number;
+  defaultValue?: string | number | boolean;
   listSchema?: NodeField[];
 }
 

@@ -54,6 +54,13 @@ const SliderCaptchaNode: NodeTypeConfig = {
       valueSource: "params",
     },
     {
+      key: "simple_target",
+      label: "Simple Target",
+      type: "checkbox",
+      defaultValue: false,
+      valueSource: "params",
+    },
+    {
       key: "successSelector",
       label: "Success Selector",
       type: "text",

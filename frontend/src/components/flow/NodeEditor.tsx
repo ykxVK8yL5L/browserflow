@@ -178,6 +178,21 @@ const NodeEditor = ({ node, open, onSave, onClose, readOnly = false }: NodeEdito
       );
     }
 
+    if (field.type === "checkbox") {
+      return (
+        <label className="flex items-center justify-between gap-3 rounded-md border border-border bg-secondary/40 px-3 py-2">
+          <span className="text-sm font-mono text-foreground">
+            {field.placeholder || "启用"}
+          </span>
+          <Switch
+            checked={Boolean(value)}
+            onCheckedChange={(checked) => updateField(field.key, checked)}
+            disabled={readOnly}
+          />
+        </label>
+      );
+    }
+
     return (
       <input
         className={inputClass}

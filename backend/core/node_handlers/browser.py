@@ -925,6 +925,7 @@ async def _captcha_get_distance(ctx, data: dict) -> int:
     bg_selector = str(data.get("backgroundSelector") or "").strip()
     piece_selector = str(data.get("sliderImageSelector") or "").strip()
     offset = int(data.get("offset") or 0)
+    simple_target = _to_bool(data.get("simple_target"), False)
 
     if not bg_selector or not piece_selector:
         raise ValueError("缺少背景图或滑块图选择器")
@@ -944,7 +945,13 @@ async def _captcha_get_distance(ctx, data: dict) -> int:
 
     ocr = _get_ddddocr_instance("slide")
     try:
-        match_result = ocr.slide_match(piece_bytes, bg_bytes)
+        match_result = _run_slide_match(
+            ocr,
+            piece_bytes,
+            bg_bytes,
+            use_comparison=False,
+            simple_target=simple_target,
+        )
     except Exception as exc:
         raise ValueError(
             f"滑块识别失败，请检查背景图/拼图选择器是否正确: {exc}"
@@ -1130,9 +1137,39 @@ async def _captcha_selector_hidden(ctx, selector: str) -> bool:
         count = await ctx.page.locator(selector).count()
         if count == 0:
             return True
-        return not await locator.is_visible(timeout=300)
+        return not await locator.is_visible()
     except Exception:
         return True
+
+
+async def _captcha_is_success(ctx, data: dict) -> bool:
+    success_selector = str(data.get("successSelector") or "").strip()
+    success_text = str(data.get("successText") or "").strip()
+    success_timeout = int(data.get("successTimeout") or 5000)
+
+    try:
+        if success_selector:
+            await ctx.page.locator(success_selector).first.wait_for(
+                state="visible",
+                timeout=success_timeout,
+            )
+            if await ctx.page.locator(success_selector).first.is_visible():
+                return True
+    except Exception:
+        pass
+
+    if success_text:
+        try:
+            await ctx.page.get_by_text(success_text).first.wait_for(
+                state="visible",
+                timeout=success_timeout,
+            )
+            if await ctx.page.get_by_text(success_text).first.is_visible():
+                return True
+        except Exception:
+            pass
+
+    return False
 
 
 async def handle_slider_captcha_node(
@@ -1142,8 +1179,6 @@ async def handle_slider_captcha_node(
     wait_after_drag = max(0, int(data.get("waitAfterDragMs") or 3000))
     success_selector = str(data.get("successSelector") or "").strip()
     success_text = str(data.get("successText") or "").strip()
-    bg_selector = str(data.get("backgroundSelector") or "").strip()
-    piece_selector = str(data.get("sliderImageSelector") or "").strip()
     node_id = normalized_node["id"]
 
     if not success_selector and not success_text:
@@ -1161,26 +1196,6 @@ async def handle_slider_captcha_node(
     last_error = None
     last_prepare_info = {"retryTriggered": False, "refreshed": False}
 
-    async def success_check() -> bool:
-        try:
-            if success_selector:
-                visible = await ctx.page.locator(success_selector).first.is_visible(
-                    timeout=int(data.get("successTimeout") or 5000)
-                )
-                if visible:
-                    return True
-        except Exception:
-            pass
-
-        if success_text:
-            try:
-                return await ctx.page.get_by_text(success_text).first.is_visible(
-                    timeout=int(data.get("successTimeout") or 5000)
-                )
-            except Exception:
-                return False
-        return False
-
     for attempt in range(1, max_retry + 1):
         try:
             print(f"开始第{attempt}次尝试")
@@ -1192,28 +1207,12 @@ async def handle_slider_captcha_node(
             if wait_after_drag:
                 await ctx.page.wait_for_timeout(wait_after_drag)
 
-            if await success_check():
+            if await _captcha_is_success(ctx, data):
                 result.data = {
                     "result": True,
                     "success": True,
                     "attempt": attempt,
                     "distance": distance,
-                    **last_prepare_info,
-                    **drag_info,
-                }
-                ctx.outputs[node_id] = result.data
-                result.message = f"Slider captcha solved on attempt {attempt}"
-                return
-
-            bg_hidden = await _captcha_selector_hidden(ctx, bg_selector)
-            piece_hidden = await _captcha_selector_hidden(ctx, piece_selector)
-            if bg_hidden or piece_hidden:
-                result.data = {
-                    "result": True,
-                    "success": True,
-                    "attempt": attempt,
-                    "distance": distance,
-                    "completedBy": "captcha-hidden",
                     **last_prepare_info,
                     **drag_info,
                 }

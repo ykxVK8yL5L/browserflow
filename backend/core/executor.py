@@ -628,17 +628,40 @@ class ExecutionSandbox:
     async def close(self) -> None:
         """关闭浏览器"""
         if self.context:
-            if self.identity.type == "file":
-                state_path = os.path.join(self.identity.storage_path, "state.json")
+            try:
+                if (
+                    self.identity
+                    and self.identity.type == "file"
+                    and self.identity.storage_path
+                ):
+                    state_path = os.path.join(self.identity.storage_path, "state.json")
+                    try:
+                        await self.context.storage_state(path=state_path)
+                    except Exception as e:
+                        print(f"Execution error: {e}")
+            finally:
                 try:
-                    await self.context.storage_state(path=state_path)
+                    await self.context.close()
                 except Exception as e:
-                    print(f"Execution error: {e}")
-            await self.context.close()
+                    print(f"Failed to close browser context: {e}")
+                finally:
+                    self.context = None
+
         if self.browser:
-            await self.browser.close()
+            try:
+                await self.browser.close()
+            except Exception as e:
+                print(f"Failed to close browser: {e}")
+            finally:
+                self.browser = None
+
         if self._playwright:
-            await self._playwright.stop()
+            try:
+                await self._playwright.stop()
+            except Exception as e:
+                print(f"Failed to stop playwright: {e}")
+            finally:
+                self._playwright = None
 
     def get_current_page(self) -> Any:
         """获取当前页面"""
