@@ -1,0 +1,72 @@
+{
+  "version": 1,
+  "categories": [
+    {
+      "key": "code-snippets",
+      "label": "代码片段",
+      "description": "可复用的代码与逻辑片段模板。"
+    },
+    {
+      "key": "check-in",
+      "label": "签到",
+      "description": "签到类流程模板。"
+    },
+    {
+      "key": "register",
+      "label": "注册",
+      "description": "注册类流程模板分类预留。"
+    }
+  ],
+  "items": [
+    {
+      "id": "global-random-string",
+      "category": "code-snippets",
+      "name": "全局字符串随机生成方法",
+      "description": "生成与复用全局随机字符串的代码片段模板。",
+      "tags": ["字符串", "随机", "片段"],
+      "author": "官方",
+      "sort_order": 10,
+      "path": "code-snippets/全局字符串随机生成方法.json"
+    },
+    {
+      "id": "slider-captcha",
+      "category": "code-snippets",
+      "name": "滑动验证码",
+      "description": "滑块验证码识别与拖动处理示例。",
+      "tags": ["验证码", "滑块", "自动化"],
+      "author": "官方",
+      "sort_order": 20,
+      "path": "code-snippets/滑动验证码.json"
+    },
+    {
+      "id": "215-check-in",
+      "category": "check-in",
+      "name": "215签到",
+      "description": "215 站点签到流程模板。",
+      "tags": ["签到"],
+      "author": "官方",
+      "sort_order": 10,
+      "path": "check-in/215签到.json"
+    },
+    {
+      "id": "voapi-check-in",
+      "category": "check-in",
+      "name": "voapi签到",
+      "description": "voapi 站点签到流程模板。",
+      "tags": ["签到", "voapi"],
+      "author": "官方",
+      "sort_order": 20,
+      "path": "check-in/voapi签到.json"
+    },
+    {
+      "id": "z-org-register",
+      "category": "register",
+      "name": "z.org注册",
+      "description": "z.org 站点注册流程模板。",
+      "tags": ["注册", "z.org"],
+      "author": "官方",
+      "sort_order": 10,
+      "path": "register/z.org注册.json"
+    }
+  ]
+}

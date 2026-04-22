@@ -55,6 +55,7 @@ import {
 } from "@/lib/notificationApi";
 import { getSchedules, toggleSchedule, type Schedule } from "@/lib/scheduleApi";
 import { downloadSystemBackup, restoreSystemBackup } from "@/lib/systemApi";
+import { getTemplateSettings, updateTemplateSettings } from "@/lib/templateApi";
 import { toast } from "sonner";
 
 const FlowList = () => {
@@ -100,6 +101,8 @@ const FlowList = () => {
   const [testResult, setTestResult] = useState<NotificationTestSendResponse | null>(null);
   const [backupLoading, setBackupLoading] = useState(false);
   const [restoreLoading, setRestoreLoading] = useState(false);
+  const [templateFeatureEnabled, setTemplateFeatureEnabled] = useState(true);
+  const [templateIndexUrl, setTemplateIndexUrl] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -150,6 +153,15 @@ const FlowList = () => {
         })
         .catch((error) => {
           console.error("Failed to load notification settings:", error);
+        });
+
+      getTemplateSettings()
+        .then((settings) => {
+          setTemplateFeatureEnabled(settings.feature_enabled);
+          setTemplateIndexUrl(settings.index_url || "");
+        })
+        .catch((error) => {
+          console.error("Failed to load template settings:", error);
         });
     }
   }, [isAdmin]);
@@ -458,6 +470,20 @@ const FlowList = () => {
       setTestResultMessage(error instanceof Error ? error.message : "测试发送失败");
     } finally {
       setTestSending(false);
+    }
+  };
+
+  const handleTemplateSettingsSave = async () => {
+    try {
+      const updated = await updateTemplateSettings({
+        feature_enabled: templateFeatureEnabled,
+        index_url: templateIndexUrl,
+      });
+      setTemplateFeatureEnabled(updated.feature_enabled);
+      setTemplateIndexUrl(updated.index_url || "");
+      toast.success("模板设置已保存");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "模板设置保存失败");
     }
   };
 
@@ -809,8 +835,13 @@ const FlowList = () => {
           testResult={testResult}
           backupLoading={backupLoading}
           restoreLoading={restoreLoading}
+          templateFeatureEnabled={templateFeatureEnabled}
+          templateIndexUrl={templateIndexUrl}
           uaOpen={uaOpen}
           onUaOpenChange={setUaOpen}
+          onTemplateFeatureEnabledChange={setTemplateFeatureEnabled}
+          onTemplateIndexUrlChange={setTemplateIndexUrl}
+          onTemplateSettingsSave={() => void handleTemplateSettingsSave()}
           onNotificationChannelToggle={handleNotificationChannelToggle}
           onNotificationChannelDraftChange={updateNotificationChannelDraft}
           onNotificationChannelDraftSave={saveNotificationChannelDraft}

@@ -191,3 +191,32 @@ def init_db():
                     "system_rules": "[]",
                 },
             )
+
+        template_settings_columns = {
+            row[1] for row in conn.execute(text("PRAGMA table_info(template_settings)"))
+        }
+        if template_settings_columns:
+            if "feature_enabled" not in template_settings_columns:
+                conn.execute(
+                    text(
+                        "ALTER TABLE template_settings ADD COLUMN feature_enabled BOOLEAN DEFAULT 1"
+                    )
+                )
+            if "index_url" not in template_settings_columns:
+                conn.execute(
+                    text("ALTER TABLE template_settings ADD COLUMN index_url TEXT")
+                )
+
+        existing_template_settings = conn.execute(
+            text("SELECT COUNT(*) FROM template_settings")
+        ).scalar()
+        if not existing_template_settings:
+            conn.execute(
+                text(
+                    "INSERT INTO template_settings (feature_enabled, index_url) VALUES (:feature_enabled, :index_url)"
+                ),
+                {
+                    "feature_enabled": True,
+                    "index_url": None,
+                },
+            )

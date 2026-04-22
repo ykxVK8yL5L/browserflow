@@ -20,6 +20,7 @@ import {
   History,
   Download,
   Upload,
+  LayoutTemplate,
   KeyRound,
   MoreVertical,
   Settings2,
@@ -66,7 +67,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Input } from "@/components/ui/input";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import type { RunSettings } from "@/lib/flowApi";
+import { getTemplateIndex, getTemplateItem, type TemplateIndexItem } from "@/lib/templateApi";
 
 const initialExecState: FlowExecutionState = {
   status: "idle",
@@ -166,6 +179,8 @@ const DEFAULT_RUN_SETTINGS: Required<RunSettings> = {
   device: "Desktop Chrome",
 };
 
+const TEMPLATE_PAGE_SIZE = 6;
+
 const mergeRunSettings = (settings?: RunSettings | null): Required<RunSettings> => ({
   ...DEFAULT_RUN_SETTINGS,
   ...(settings || {}),
@@ -174,6 +189,71 @@ const mergeRunSettings = (settings?: RunSettings | null): Required<RunSettings> 
     ...((settings && settings.viewport) || {}),
   },
 });
+
+const appendImportedFlow = (
+  currentNodes: Node[],
+  currentEdges: Edge[],
+  importedNodes: Node[],
+  importedEdges: Edge[],
+) => {
+  const existingIds = new Set(currentNodes.map((node) => node.id));
+  const idMap = new Map<string, string>();
+
+  const nextNodeId = (originalId: string) => {
+    let candidate = originalId;
+    while (existingIds.has(candidate) || idMap.has(candidate)) {
+      candidate = `${originalId}_${Math.random().toString(36).slice(2, 8)}`;
+    }
+    existingIds.add(candidate);
+    return candidate;
+  };
+
+  const baseMaxY = currentNodes.length
+    ? Math.max(...currentNodes.map((node) => node.position.y))
+    : 0;
+  const importedMinX = importedNodes.length
+    ? Math.min(...importedNodes.map((node) => node.position.x))
+    : 0;
+  const importedMinY = importedNodes.length
+    ? Math.min(...importedNodes.map((node) => node.position.y))
+    : 0;
+  const offsetX = currentNodes.length ? 80 : 0;
+  const offsetY = currentNodes.length ? baseMaxY - importedMinY + 180 : 0;
+
+  const appendedNodes: Node[] = importedNodes.map((node) => {
+    const nextId = nextNodeId(node.id);
+    idMap.set(node.id, nextId);
+    return {
+      ...node,
+      id: nextId,
+      selected: false,
+      position: {
+        x: node.position.x - importedMinX + offsetX,
+        y: node.position.y + offsetY,
+      },
+      data: {
+        ...node.data,
+        _execStatus: undefined,
+        _execMessage: undefined,
+        _execError: undefined,
+        _execDuration: undefined,
+      },
+    };
+  });
+
+  const appendedEdges: Edge[] = importedEdges.map((edge, index) => ({
+    ...edge,
+    id: `${edge.id || "edge"}_${index}_${Math.random().toString(36).slice(2, 8)}`,
+    source: idMap.get(edge.source) || edge.source,
+    target: idMap.get(edge.target) || edge.target,
+    selected: false,
+  }));
+
+  return {
+    nodes: [...currentNodes, ...appendedNodes],
+    edges: [...currentEdges, ...appendedEdges],
+  };
+};
 
 const Index = () => {
   const { flowId } = useParams<{ flowId: string }>();
@@ -199,6 +279,14 @@ const Index = () => {
   const [historyViewingExecution, setHistoryViewingExecution] = useState<ExecutionRecord | null>(null);
   const [credentialsOpen, setCredentialsOpen] = useState(false);
   const [runSettingsOpen, setRunSettingsOpen] = useState(false);
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+  const [templateLoading, setTemplateLoading] = useState(false);
+  const [templateImportingId, setTemplateImportingId] = useState<string | null>(null);
+  const [templateItems, setTemplateItems] = useState<TemplateIndexItem[]>([]);
+  const [templateCategories, setTemplateCategories] = useState<Record<string, { label: string; description: string }>>({});
+  const [templateCategoryFilter, setTemplateCategoryFilter] = useState<string>("all");
+  const [templateKeyword, setTemplateKeyword] = useState("");
+  const [templatePage, setTemplatePage] = useState(1);
   const [runSettings, setRunSettings] = useState<Required<RunSettings>>(DEFAULT_RUN_SETTINGS);
   const [userAgents, setUserAgents] = useState<UserAgent[]>([]);
   const abortRef = useRef<AbortController | null>(null);
@@ -368,9 +456,15 @@ const Index = () => {
             return;
           }
           const cleanNodes = stripExecData(data.nodes);
-          resetFnRef.current?.(cleanNodes, data.edges || []);
-          nodesRef.current = cleanNodes;
-          edgesRef.current = data.edges || [];
+          const merged = appendImportedFlow(
+            nodesRef.current,
+            edgesRef.current,
+            cleanNodes,
+            data.edges || [],
+          );
+          resetFnRef.current?.(merged.nodes, merged.edges);
+          nodesRef.current = merged.nodes;
+          edgesRef.current = merged.edges;
           setHasUnsaved(true);
           toast.success(
             `Imported "${data.name || "flow"}" (${cleanNodes.length} nodes)`,
@@ -383,6 +477,91 @@ const Index = () => {
     };
     input.click();
   }, []);
+
+  const loadTemplateIndex = useCallback(async () => {
+    setTemplateLoading(true);
+    try {
+      const data = await getTemplateIndex();
+      setTemplateItems(data.items || []);
+      setTemplatePage(1);
+      setTemplateCategories(
+        Object.fromEntries(
+          (data.categories || []).map((category) => [
+            category.key,
+            { label: category.label, description: category.description },
+          ]),
+        ),
+      );
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "加载模板列表失败");
+      throw error;
+    } finally {
+      setTemplateLoading(false);
+    }
+  }, []);
+
+  const handleOpenTemplateDialog = useCallback(async () => {
+    setTemplateDialogOpen(true);
+    if (templateItems.length > 0) {
+      return;
+    }
+    await loadTemplateIndex();
+  }, [loadTemplateIndex, templateItems.length]);
+
+  const handleImportTemplate = useCallback(async (templateId: string) => {
+    setTemplateImportingId(templateId);
+    try {
+      const template = await getTemplateItem(templateId);
+      const cleanNodes = stripExecData(template.nodes as Node[]);
+      const cleanEdges = (template.edges || []) as Edge[];
+      const merged = appendImportedFlow(
+        nodesRef.current,
+        edgesRef.current,
+        cleanNodes,
+        cleanEdges,
+      );
+      resetFnRef.current?.(merged.nodes, merged.edges);
+      nodesRef.current = merged.nodes;
+      edgesRef.current = merged.edges;
+      setHasUnsaved(true);
+      setTemplateDialogOpen(false);
+      toast.success(`已导入模板“${template.name}”`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "导入模板失败");
+    } finally {
+      setTemplateImportingId(null);
+    }
+  }, []);
+
+  const filteredTemplateItems = useMemo(() => {
+    const keyword = templateKeyword.trim().toLowerCase();
+    return templateItems.filter((item) => {
+      const matchesCategory = templateCategoryFilter === "all" || item.category === templateCategoryFilter;
+      const matchesKeyword =
+        !keyword ||
+        item.name.toLowerCase().includes(keyword) ||
+        item.description.toLowerCase().includes(keyword) ||
+        item.tags.some((tag) => tag.toLowerCase().includes(keyword));
+      return matchesCategory && matchesKeyword;
+    });
+  }, [templateCategoryFilter, templateItems, templateKeyword]);
+
+  const templatePageCount = Math.max(1, Math.ceil(filteredTemplateItems.length / TEMPLATE_PAGE_SIZE));
+  const pagedTemplateItems = useMemo(() => {
+    const safePage = Math.min(templatePage, templatePageCount);
+    const start = (safePage - 1) * TEMPLATE_PAGE_SIZE;
+    return filteredTemplateItems.slice(start, start + TEMPLATE_PAGE_SIZE);
+  }, [filteredTemplateItems, templatePage, templatePageCount]);
+
+  useEffect(() => {
+    setTemplatePage(1);
+  }, [templateCategoryFilter, templateKeyword]);
+
+  useEffect(() => {
+    if (templatePage > templatePageCount) {
+      setTemplatePage(templatePageCount);
+    }
+  }, [templatePage, templatePageCount]);
 
   const handleRun = useCallback(() => {
     if (execState.status === "running") {
@@ -819,6 +998,15 @@ const Index = () => {
                     <Upload size={16} />
                   </button>
                 </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <button
+                    onClick={() => void handleOpenTemplateDialog()}
+                    className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                    title="Import template"
+                  >
+                    <LayoutTemplate size={16} />
+                  </button>
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem>
                   <button
@@ -850,6 +1038,166 @@ const Index = () => {
       </header>
 
       {/* Run Settings Dialog */}
+      <Dialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen}>
+        <DialogContent className="sm:max-w-3xl bg-card border-border h-[80vh] flex flex-col overflow-hidden">
+          <DialogHeader>
+            <DialogTitle className="font-mono text-sm">导入模板</DialogTitle>
+            <DialogDescription className="font-mono text-xs text-muted-foreground">
+              模板会追加到当前画布，不会替换现有流程。
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="min-h-0 flex-1 flex flex-col gap-4 overflow-hidden">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-xs font-mono text-muted-foreground">
+                共 {filteredTemplateItems.length} / {templateItems.length} 个模板
+              </div>
+              <Button variant="outline" size="sm" onClick={() => void loadTemplateIndex()} disabled={templateLoading}>
+                刷新
+              </Button>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-[180px_minmax(0,1fr)]">
+              <Select value={templateCategoryFilter} onValueChange={setTemplateCategoryFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="选择分类" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">全部分类</SelectItem>
+                  {Object.entries(templateCategories).map(([key, category]) => (
+                    <SelectItem key={key} value={key}>
+                      {category.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Input
+                value={templateKeyword}
+                onChange={(e) => setTemplateKeyword(e.target.value)}
+                placeholder="搜索模板名称、描述或标签"
+                className="font-mono"
+              />
+            </div>
+
+            <ScrollArea className="min-h-0 flex-1 h-full pr-3">
+              <div className="space-y-4 pb-2">
+                {templateLoading ? (
+                  <div className="text-sm font-mono text-muted-foreground py-8 text-center">正在加载模板...</div>
+                ) : filteredTemplateItems.length === 0 ? (
+                  <div className="text-sm font-mono text-muted-foreground py-8 text-center">暂无可用模板</div>
+                ) : (
+                  Object.entries(
+                    pagedTemplateItems.reduce<Record<string, TemplateIndexItem[]>>((acc, item) => {
+                      acc[item.category] = acc[item.category] || [];
+                      acc[item.category].push(item);
+                      return acc;
+                    }, {}),
+                  ).map(([categoryKey, items]) => {
+                    const category = templateCategories[categoryKey];
+                    return (
+                      <div key={categoryKey} className="space-y-2">
+                        <div>
+                          <div className="text-sm font-mono font-semibold text-foreground">
+                            {category?.label || categoryKey}
+                          </div>
+                          {category?.description ? (
+                            <div className="text-xs font-mono text-muted-foreground">{category.description}</div>
+                          ) : null}
+                        </div>
+                        <div className="grid gap-3 md:grid-cols-2">
+                          {items.map((item) => (
+                            <div key={item.id} className="rounded-lg border border-border p-4 space-y-3">
+                              <div className="space-y-1">
+                                <div className="text-sm font-mono font-semibold text-foreground">{item.name}</div>
+                                <div className="text-xs text-muted-foreground">{item.description || "无描述"}</div>
+                                <div className="text-[11px] font-mono text-muted-foreground">
+                                  作者：{item.author || "官方"} · 排序：{item.sort_order ?? 0}
+                                </div>
+                              </div>
+                              {item.tags.length > 0 ? (
+                                <div className="flex flex-wrap gap-2">
+                                  {item.tags.map((tag) => (
+                                    <Badge key={`${item.id}-${tag}`} variant="secondary" className="font-mono">
+                                      {tag}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              ) : null}
+                              <div className="flex justify-end">
+                                <Button
+                                  size="sm"
+                                  onClick={() => void handleImportTemplate(item.id)}
+                                  disabled={templateImportingId === item.id}
+                                >
+                                  {templateImportingId === item.id ? "导入中..." : "导入模板"}
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </ScrollArea>
+
+            {filteredTemplateItems.length > 0 ? (
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="text-xs font-mono text-muted-foreground">
+                  第 {templatePage} / {templatePageCount} 页
+                </div>
+                <Pagination className="mx-0 w-auto justify-end">
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setTemplatePage((page) => Math.max(1, page - 1));
+                        }}
+                        className={templatePage <= 1 ? "pointer-events-none opacity-50" : ""}
+                      />
+                    </PaginationItem>
+                    {Array.from({ length: templatePageCount }, (_, index) => index + 1).map((page) => (
+                      <PaginationItem key={page}>
+                        <PaginationLink
+                          href="#"
+                          isActive={page === templatePage}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setTemplatePage(page);
+                          }}
+                        >
+                          {page}
+                        </PaginationLink>
+                      </PaginationItem>
+                    ))}
+                    <PaginationItem>
+                      <PaginationNext
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setTemplatePage((page) => Math.min(templatePageCount, page + 1));
+                        }}
+                        className={templatePage >= templatePageCount ? "pointer-events-none opacity-50" : ""}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              </div>
+            ) : null}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTemplateDialogOpen(false)}>
+              关闭
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={runSettingsOpen} onOpenChange={setRunSettingsOpen}>
         <DialogContent className="sm:max-w-[425px] bg-card border-border max-h-[80vh] flex flex-col">
           <DialogHeader>

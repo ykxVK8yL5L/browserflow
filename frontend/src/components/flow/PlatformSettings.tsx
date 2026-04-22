@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import SystemNotificationRecipientsEditor from "@/components/flow/SystemNotificationRecipientsEditor";
 import SystemNotificationRulesEditor from "@/components/flow/SystemNotificationRulesEditor";
 import UserAgentManager from "@/components/flow/UserAgentManager";
+import { Input } from "@/components/ui/input";
 import {
     Dialog,
     DialogContent,
@@ -52,8 +53,13 @@ interface PlatformSettingsProps {
     testResult: NotificationTestSendResponse | null;
     backupLoading: boolean;
     restoreLoading: boolean;
+    templateFeatureEnabled: boolean;
+    templateIndexUrl: string;
     uaOpen: boolean;
     onUaOpenChange: (open: boolean) => void;
+    onTemplateFeatureEnabledChange: (checked: boolean) => void;
+    onTemplateIndexUrlChange: (value: string) => void;
+    onTemplateSettingsSave: () => void;
     onNotificationChannelToggle: (
         channelType: NotificationChannelConfig["channel_type"],
         enabled: boolean
@@ -108,8 +114,13 @@ const PlatformSettings = ({
     testResult,
     backupLoading,
     restoreLoading,
+    templateFeatureEnabled,
+    templateIndexUrl,
     uaOpen,
     onUaOpenChange,
+    onTemplateFeatureEnabledChange,
+    onTemplateIndexUrlChange,
+    onTemplateSettingsSave,
     onNotificationChannelToggle,
     onNotificationChannelDraftChange,
     onNotificationChannelDraftSave,
@@ -498,6 +509,54 @@ const PlatformSettings = ({
 
                         {activeTab === "tools" && (
                             <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pr-1">
+                                {isAdmin && (
+                                    <div className="rounded-lg border border-border p-4 space-y-4">
+                                        <div>
+                                            <p className="text-sm font-mono text-foreground">模板设置</p>
+                                            <p className="text-xs font-mono text-muted-foreground">
+                                                配置 Flow 编辑器中的模板导入来源，模板索引应指向 `index.json`。
+                                            </p>
+                                        </div>
+
+                                        <div className="flex items-center justify-between gap-4">
+                                            <div>
+                                                <p className="text-sm font-mono text-foreground">启用模板功能</p>
+                                                <p className="text-xs font-mono text-muted-foreground">
+                                                    关闭后，Flow 编辑器将隐藏导入模板入口。
+                                                </p>
+                                            </div>
+                                            <Switch
+                                                checked={templateFeatureEnabled}
+                                                onCheckedChange={onTemplateFeatureEnabledChange}
+                                            />
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-mono text-muted-foreground block">
+                                                模板索引地址
+                                            </label>
+                                            <Input
+                                                value={templateIndexUrl}
+                                                onChange={(e) => onTemplateIndexUrlChange(e.target.value)}
+                                                placeholder="https://.../templates/index.json"
+                                                className="font-mono text-sm"
+                                            />
+                                            <p className="text-[11px] font-mono text-muted-foreground break-all">
+                                                建议填写模板索引 JSON 地址。当前只预留分类，不在仓库内放模板数据。
+                                            </p>
+                                        </div>
+
+                                        <div>
+                                            <button
+                                                onClick={onTemplateSettingsSave}
+                                                className="px-3 py-2 rounded-md bg-secondary text-secondary-foreground text-xs font-mono hover:bg-secondary/80"
+                                            >
+                                                保存模板设置
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
                                 <div className="rounded-lg border border-border p-4 space-y-3">
                                     <div>
                                         <p className="text-sm font-mono text-foreground">System Backup & Restore</p>

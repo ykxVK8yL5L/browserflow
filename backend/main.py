@@ -38,6 +38,7 @@ from routers.execution import router as execution_router
 from routers.websocket import router as websocket_router
 from routers.schedule import router as schedule_router
 from routers.notification import router as notification_router
+from routers.templates import router as templates_router
 from utils.auth_utils import is_otp_setup_deadline_expired
 from routers.system import router as system_router
 from utils.auth_utils import verify_jwt
@@ -194,6 +195,7 @@ app.include_router(execution_router)
 app.include_router(websocket_router)
 app.include_router(schedule_router)
 app.include_router(notification_router)
+app.include_router(templates_router)
 app.include_router(system_router)
 
 # 1️⃣ 挂载静态资源目录

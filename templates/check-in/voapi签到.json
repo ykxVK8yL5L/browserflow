@@ -1,0 +1,887 @@
+{
+  "name": "voapi签到",
+  "description": "",
+  "nodes": [
+    {
+      "id": "node_1776819864860",
+      "type": "navigate",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "打开网址",
+        "nodeType": "navigate",
+        "params": {
+          "url": "https://demo.voapi.top/dash"
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "url": "https://demo.voapi.top/dash",
+        "description": "https://demo.voapi.top/dash",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 1000
+      },
+      "position": {
+        "x": 130,
+        "y": 0
+      }
+    },
+    {
+      "id": "node_1776819864861",
+      "type": "check_existence",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "判断是否有弹窗",
+        "nodeType": "check_existence",
+        "params": {
+          "timeout": 30000,
+          "selector": "span:has-text('Announcements')"
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "timeout": 30000,
+        "description": "如果有弹窗先关闭",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 1000,
+        "selector": "span:has-text('Announcements')"
+      },
+      "position": {
+        "x": 130,
+        "y": 160
+      }
+    },
+    {
+      "id": "node_1776819864862",
+      "type": "click",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "点击今日不提醒",
+        "nodeType": "click",
+        "params": {
+          "selectorType": "native",
+          "selector": "span:has-text(\"Today don't remind me\")",
+          "button": "middle",
+          "clickCount": 1,
+          "timeout": 30000
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "outputType": "void",
+        "selectorType": "native",
+        "selector": "span:has-text(\"Today don't remind me\")",
+        "button": "middle",
+        "clickCount": 1,
+        "timeout": 30000,
+        "description": "点击Today don't remind me",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 1000
+      },
+      "position": {
+        "x": -120,
+        "y": 320
+      }
+    },
+    {
+      "id": "node_1776819864863",
+      "type": "check_existence",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "判断是否需要登陆",
+        "nodeType": "check_existence",
+        "params": {
+          "timeout": 30000,
+          "selector": "div:has-text('Login Auth')"
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "timeout": 30000,
+        "description": "判断是否需要登陆",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 1000,
+        "selector": "div:has-text('Login Auth')"
+      },
+      "position": {
+        "x": 130,
+        "y": 480
+      }
+    },
+    {
+      "id": "node_1776820772427",
+      "type": "type",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "输入用户名",
+        "nodeType": "type",
+        "params": {
+          "selectorType": "native",
+          "selector": "",
+          "text": "",
+          "delay": 0,
+          "timeout": 30000
+        },
+        "inputs": {
+          "target": {
+            "from": "node_1776824067535"
+          },
+          "text": {
+            "from": "{{credential:voapi_username}}"
+          }
+        },
+        "stopOnFailure": true,
+        "outputType": "void",
+        "selectorType": "native",
+        "selector": "",
+        "text": "",
+        "delay": 0,
+        "timeout": 30000,
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 1000
+      },
+      "position": {
+        "x": 60,
+        "y": 800
+      }
+    },
+    {
+      "id": "node_1776820772431",
+      "type": "click",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "点击验证码按钮",
+        "nodeType": "click",
+        "params": {
+          "selectorType": "native",
+          "selector": "button:has-text('Click here for human verification')",
+          "button": "middle",
+          "clickCount": 1,
+          "timeout": 30000
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "outputType": "void",
+        "selectorType": "native",
+        "selector": "button:has-text('Click here for human verification')",
+        "button": "middle",
+        "clickCount": 1,
+        "timeout": 30000,
+        "description": "点击Click here for human verification",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 3000
+      },
+      "position": {
+        "x": 60,
+        "y": 1280
+      }
+    },
+    {
+      "id": "node_1776820772432",
+      "type": "check_existence",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "检查弹验证码是否出现",
+        "nodeType": "check_existence",
+        "params": {
+          "timeout": 30000,
+          "selector": "div.action-captcha"
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "timeout": 30000,
+        "description": "检查验证码是否出现",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 0,
+        "selector": "div.action-captcha"
+      },
+      "position": {
+        "x": 60,
+        "y": 1440
+      }
+    },
+    {
+      "id": "node_1776820772433",
+      "type": "waitFor",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "等到验证码弹出框出现",
+        "nodeType": "waitFor",
+        "params": {
+          "selectorType": "native",
+          "selector": "div.action-captcha",
+          "state": "visible",
+          "timeout": 30000
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "outputType": "void",
+        "selectorType": "native",
+        "selector": "div.action-captcha",
+        "state": "visible",
+        "timeout": 30000,
+        "description": "等到验证码弹出框出现",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 0
+      },
+      "position": {
+        "x": 130,
+        "y": 1600
+      }
+    },
+    {
+      "id": "node_1776820772434",
+      "type": "sliderCaptcha",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "Slider Captcha",
+        "nodeType": "sliderCaptcha",
+        "params": {
+          "handleSelectorType": "native",
+          "handleSelector": "div[class^='drag-block']",
+          "backgroundSelector": "img.picture",
+          "sliderImageSelector": "div.tile img",
+          "successSelector": "span:has-text('Human-machine Passed')",
+          "successText": "",
+          "retryTriggerSelector": "",
+          "refreshSelector": "",
+          "refreshTimeout": 5000,
+          "refreshWaitMs": 1500,
+          "offset": -8,
+          "minStep": 5,
+          "maxStep": 12,
+          "moveDelayMs": 10,
+          "overshoot": 8,
+          "backtrack": 2,
+          "holdBeforeReleaseMs": 100,
+          "waitAfterDragMs": 3000,
+          "successTimeout": 5000,
+          "maxRetry": 3,
+          "simple_target": true
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "outputType": "object",
+        "handleSelectorType": "native",
+        "handleSelector": "div[class^='drag-block']",
+        "backgroundSelector": "img.picture",
+        "sliderImageSelector": "div.tile img",
+        "successSelector": "span:has-text('Human-machine Passed')",
+        "successText": "",
+        "retryTriggerSelector": "",
+        "refreshSelector": "",
+        "refreshTimeout": 5000,
+        "refreshWaitMs": 1500,
+        "offset": -8,
+        "minStep": 5,
+        "maxStep": 12,
+        "moveDelayMs": 10,
+        "overshoot": 8,
+        "backtrack": 2,
+        "holdBeforeReleaseMs": 100,
+        "waitAfterDragMs": 3000,
+        "successTimeout": 5000,
+        "maxRetry": 3,
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 0,
+        "simple_target": true
+      },
+      "position": {
+        "x": 60,
+        "y": 1760
+      }
+    },
+    {
+      "id": "node_1776820772437",
+      "type": "type",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "输入密码",
+        "nodeType": "type",
+        "params": {
+          "selectorType": "native",
+          "selector": "",
+          "text": "",
+          "delay": 0,
+          "timeout": 30000
+        },
+        "inputs": {
+          "target": {
+            "from": "node_1776824067536"
+          },
+          "text": {
+            "from": "{{credential:voapi_password}}"
+          }
+        },
+        "stopOnFailure": true,
+        "outputType": "void",
+        "selectorType": "native",
+        "selector": "",
+        "text": "",
+        "delay": 0,
+        "timeout": 30000,
+        "description": "输入密码",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 0
+      },
+      "position": {
+        "x": 60,
+        "y": 1120
+      }
+    },
+    {
+      "id": "node_1776824067535",
+      "type": "nth",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "用户名输入框",
+        "nodeType": "nth",
+        "params": {
+          "selectorType": "native",
+          "selector": ".n-form input",
+          "index": 0
+        },
+        "inputs": {
+          "index": {
+            "from": "0"
+          }
+        },
+        "stopOnFailure": true,
+        "outputType": "locator",
+        "selectorType": "native",
+        "selector": ".n-form input",
+        "index": 0,
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 0
+      },
+      "position": {
+        "x": 60,
+        "y": 640
+      }
+    },
+    {
+      "id": "node_1776824067536",
+      "type": "nth",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "密码输入框",
+        "nodeType": "nth",
+        "params": {
+          "selectorType": "native",
+          "selector": ".n-form input",
+          "index": 1
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "outputType": "locator",
+        "selectorType": "native",
+        "selector": ".n-form input",
+        "index": 1,
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 0
+      },
+      "position": {
+        "x": 60,
+        "y": 960
+      }
+    },
+    {
+      "id": "node_1776831129320",
+      "type": "click",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "点击同意协议",
+        "nodeType": "click",
+        "params": {
+          "selectorType": "native",
+          "selector": "div.n-checkbox",
+          "button": "left",
+          "clickCount": 1,
+          "timeout": 30000
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "outputType": "void",
+        "selectorType": "native",
+        "selector": "div.n-checkbox",
+        "button": "left",
+        "clickCount": 1,
+        "timeout": 30000,
+        "description": "点击同意协议",
+        "disabled": false,
+        "waitBeforeMs": 1000,
+        "waitAfterMs": 1000
+      },
+      "position": {
+        "x": 60,
+        "y": 1920
+      }
+    },
+    {
+      "id": "node_1776831129321",
+      "type": "click",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "点击登陆按钮",
+        "nodeType": "click",
+        "params": {
+          "selectorType": "native",
+          "selector": "button:has-text('Login now')",
+          "button": "middle",
+          "clickCount": 1,
+          "timeout": 30000
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "outputType": "void",
+        "selectorType": "native",
+        "selector": "button:has-text('Login now')",
+        "button": "middle",
+        "clickCount": 1,
+        "timeout": 30000,
+        "description": "点击登陆按钮",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 0
+      },
+      "position": {
+        "x": 60,
+        "y": 2080
+      }
+    },
+    {
+      "id": "node_1776831129323",
+      "type": "waitForURL",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "等待进入后台",
+        "nodeType": "waitForURL",
+        "params": {
+          "url": "https://demo.voapi.top/dash",
+          "waitUntil": "load",
+          "timeout": 3000
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "outputType": "void",
+        "url": "https://demo.voapi.top/dash",
+        "waitUntil": "load",
+        "timeout": 3000,
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 10000
+      },
+      "position": {
+        "x": 60,
+        "y": 2240
+      }
+    },
+    {
+      "id": "node_1776831129324",
+      "type": "navigate",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "跳转到登陆界面",
+        "nodeType": "navigate",
+        "params": {
+          "url": "https://demo.voapi.top/checkIn?_userMenuKey=checkIn"
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "url": "https://demo.voapi.top/checkIn?_userMenuKey=checkIn",
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 3000
+      },
+      "position": {
+        "x": 130,
+        "y": 2400
+      }
+    },
+    {
+      "id": "node_1776831129325",
+      "type": "check_existence",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "检查是否有签到按钮",
+        "nodeType": "check_existence",
+        "params": {
+          "timeout": 30000,
+          "selector": "button:has-text('Check in')"
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "timeout": 30000,
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 0,
+        "selector": "button:has-text('Check in')"
+      },
+      "position": {
+        "x": 130,
+        "y": 2560
+      }
+    },
+    {
+      "id": "node_1776831129326",
+      "type": "click",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "点击签到",
+        "nodeType": "click",
+        "params": {
+          "selectorType": "native",
+          "selector": "span:has-text('Check In')",
+          "button": "middle",
+          "clickCount": 1,
+          "timeout": 50000
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "outputType": "void",
+        "selectorType": "native",
+        "selector": "span:has-text('Check In')",
+        "button": "middle",
+        "clickCount": 1,
+        "timeout": 50000,
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 3000
+      },
+      "position": {
+        "x": 40,
+        "y": 2720
+      }
+    },
+    {
+      "id": "node_1776831129327",
+      "type": "stop",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "已经签到",
+        "nodeType": "stop",
+        "params": {
+          "stopType": "success",
+          "errorMessage": "已经签到"
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "stopType": "success",
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 0,
+        "errorMessage": "已经签到"
+      },
+      "position": {
+        "x": 406.55998784468085,
+        "y": 2703.508509361796
+      }
+    },
+    {
+      "id": "node_1776831129329",
+      "type": "check_existence",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "检查已经签到按钮是否出现",
+        "nodeType": "check_existence",
+        "params": {
+          "timeout": 30000,
+          "selector": "button:has-text('Checked in')"
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "timeout": 30000,
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 0,
+        "selector": "button:has-text('Checked in')"
+      },
+      "position": {
+        "x": 40,
+        "y": 2880
+      }
+    },
+    {
+      "id": "node_1776831129330",
+      "type": "stop",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "已经签到",
+        "nodeType": "stop",
+        "params": {
+          "stopType": "success",
+          "errorMessage": "已经签到"
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "stopType": "success",
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 0,
+        "errorMessage": "已经签到"
+      },
+      "position": {
+        "x": -50,
+        "y": 3040
+      }
+    },
+    {
+      "id": "node_1776831129331",
+      "type": "stop",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "签到失败",
+        "nodeType": "stop",
+        "params": {
+          "stopType": "error",
+          "errorMessage": "签到失败请稍后再试"
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "stopType": "error",
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 0,
+        "errorMessage": "签到失败请稍后再试"
+      },
+      "position": {
+        "x": 278.4234157438345,
+        "y": 3036.907845505337
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "xy-edge__node_1776819864860-node_1776819864861",
+      "source": "node_1776819864860",
+      "target": "node_1776819864861",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1776819864861true-node_1776819864862",
+      "source": "node_1776819864861",
+      "target": "node_1776819864862",
+      "sourceHandle": "true",
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1776819864861false-node_1776819864863",
+      "source": "node_1776819864861",
+      "target": "node_1776819864863",
+      "sourceHandle": "false",
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1776820772431-node_1776820772432",
+      "source": "node_1776820772431",
+      "target": "node_1776820772432",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1776820772432false-node_1776820772433",
+      "source": "node_1776820772432",
+      "target": "node_1776820772433",
+      "sourceHandle": "false",
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1776820772433-node_1776820772434",
+      "source": "node_1776820772433",
+      "target": "node_1776820772434",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1776820772432true-node_1776820772434",
+      "source": "node_1776820772432",
+      "target": "node_1776820772434",
+      "sourceHandle": "true",
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1776820772437-node_1776820772431",
+      "source": "node_1776820772437",
+      "target": "node_1776820772431",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1776824067535-node_1776820772427",
+      "source": "node_1776824067535",
+      "target": "node_1776820772427",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1776820772427-node_1776824067536",
+      "source": "node_1776820772427",
+      "target": "node_1776824067536",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1776824067536-node_1776820772437",
+      "source": "node_1776824067536",
+      "target": "node_1776820772437",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1776819864863true-node_1776824067535",
+      "source": "node_1776819864863",
+      "target": "node_1776824067535",
+      "sourceHandle": "true",
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1776819864862-node_1776819864863",
+      "source": "node_1776819864862",
+      "target": "node_1776819864863",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1776820772434-node_1776831129320",
+      "source": "node_1776820772434",
+      "target": "node_1776831129320",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1776831129320-node_1776831129321",
+      "source": "node_1776831129320",
+      "target": "node_1776831129321",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1776831129321-node_1776831129323",
+      "source": "node_1776831129321",
+      "target": "node_1776831129323",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1776831129323-node_1776831129324",
+      "source": "node_1776831129323",
+      "target": "node_1776831129324",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1776819864863false-node_1776831129324",
+      "source": "node_1776819864863",
+      "target": "node_1776831129324",
+      "sourceHandle": "false",
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1776831129324-node_1776831129325",
+      "source": "node_1776831129324",
+      "target": "node_1776831129325",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1776831129325true-node_1776831129326",
+      "source": "node_1776831129325",
+      "target": "node_1776831129326",
+      "sourceHandle": "true",
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1776831129325false-node_1776831129327",
+      "source": "node_1776831129325",
+      "target": "node_1776831129327",
+      "sourceHandle": "false",
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1776831129326-node_1776831129329",
+      "source": "node_1776831129326",
+      "target": "node_1776831129329",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1776831129329true-node_1776831129330",
+      "source": "node_1776831129329",
+      "target": "node_1776831129330",
+      "sourceHandle": "true",
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1776831129329false-node_1776831129331",
+      "source": "node_1776831129329",
+      "target": "node_1776831129331",
+      "sourceHandle": "false",
+      "targetHandle": null
+    }
+  ],
+  "exportedAt": "2026-04-22T05:00:57.697Z"
+}

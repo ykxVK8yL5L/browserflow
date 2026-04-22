@@ -336,6 +336,18 @@ class NotificationSettingsModel(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class TemplateSettingsModel(Base):
+    """模板功能全局设置（单例）"""
+
+    __tablename__ = "template_settings"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    feature_enabled = Column(Boolean, default=True)
+    index_url = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class NodeExecutionModel(Base):
     """节点执行记录表"""
 
