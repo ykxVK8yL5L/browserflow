@@ -51,6 +51,7 @@ const CheckExistenceNodeComponent = ({ data, selected }: NodeProps) => {
     const execDuration = data._execDuration as number | undefined;
     const execError = (data._execError as string) || "";
     const execMessage = (data._execMessage as string) || "";
+    const nodeLabel = (data.label as string) || "Check Existence";
     const selectorText = typeof data.selector === "string" ? data.selector : "No selector provided";
     const isExec = execStatus !== "idle";
     const borderClass = isExec ? execBorderMap[execStatus] || "" : "border-blue-500";
@@ -60,7 +61,7 @@ const CheckExistenceNodeComponent = ({ data, selected }: NodeProps) => {
             <div className="flex items-center gap-2 px-3 py-2 bg-blue-500/10 border-b border-border rounded-t-lg">
                 <SearchCheck size={14} className="text-blue-500" />
                 <span className="text-xs font-mono font-bold text-foreground truncate">
-                    Check Existence
+                    {nodeLabel}
                 </span>
                 <div className="ml-auto">
                     <ExecutionIndicator status={execStatus} />

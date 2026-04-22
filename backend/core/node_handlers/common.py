@@ -404,6 +404,33 @@ def _apply_locator_filters(locator: Any, params: Dict[str, Any]) -> Any:
     return locator
 
 
+def _apply_locator_list_filters(locators: list[Any], params: Dict[str, Any]) -> Any:
+    """为 locator 列表应用选择参数。
+
+    列表无法像 Playwright Locator 一样继续链式 filter，因此这里只处理：
+    - first
+    - last
+    - index
+    未指定时返回原列表。
+    """
+    if not locators:
+        return []
+
+    if params.get("first"):
+        return locators[0]
+
+    if params.get("last"):
+        return locators[-1]
+
+    if params.get("index") is not None:
+        index = int(params["index"])
+        if -len(locators) <= index < len(locators):
+            return locators[index]
+        return None
+
+    return locators
+
+
 def create_locator_descriptor(
     params: Dict[str, Any], node_id: Optional[str] = None
 ) -> Dict[str, Any]:
@@ -549,10 +576,26 @@ def resolve_locator_target(ctx: Any, data: Dict[str, Any], node_data: dict) -> A
     if isinstance(target, dict) and "target" in target and len(target) == 1:
         target = target["target"]
 
-    # 0. 处理变量引用 (例如 {{item}})
+    # 0. 处理双花括号引用 (例如 {{item}} / {{node_id}} / {{node_id.result}})
     if isinstance(target, str) and target.startswith("{{") and target.endswith("}}"):
-        var_name = target[2:-2]
-        target = ctx.locals.get(var_name)
+        reference = target[2:-2].strip()
+        resolved_target = ctx.locals.get(reference)
+
+        if resolved_target is None and isinstance(reference, str):
+            if reference in ctx.values:
+                resolved_target = ctx.values.get(reference)
+            elif reference in ctx.outputs:
+                resolved_target = ctx.outputs.get(reference)
+            else:
+                resolved_target = resolve_store_reference(reference, ctx.outputs)
+
+        target = resolved_target
+
+    # 1.2 target 可能只是一个 nodeId 字符串，需要继续从 outputs 中取序列化结果再解析。
+    if isinstance(target, str):
+        serialized_target = ctx.outputs.get(target)
+        if serialized_target is not None and serialized_target is not target:
+            target = serialized_target
 
     # 如果提供了 target (无论是否能解析成功)，则进入 target 解析流程，不再回退到 selector
     if target is not None:
@@ -560,7 +603,7 @@ def resolve_locator_target(ctx: Any, data: Dict[str, Any], node_data: dict) -> A
         if isinstance(target, str) and target in ctx.values:
             runtime_val = ctx.values[target]
             if isinstance(runtime_val, list):
-                return runtime_val
+                return _apply_locator_list_filters(runtime_val, data)
             if _is_locator_like(runtime_val):
                 return _apply_locator_filters(runtime_val, data)
 
@@ -578,7 +621,7 @@ def resolve_locator_target(ctx: Any, data: Dict[str, Any], node_data: dict) -> A
                     locator = _resolve_locator_descriptor(ctx, item, {})
                     if locator is not None:
                         locators.append(locator)
-                return locators
+                return _apply_locator_list_filters(locators, data)
 
         if isinstance(target, list):
             locators = []
@@ -590,7 +633,7 @@ def resolve_locator_target(ctx: Any, data: Dict[str, Any], node_data: dict) -> A
                     locator = _resolve_locator_descriptor(ctx, item, {})
                     if locator is not None:
                         locators.append(locator)
-            return locators
+            return _apply_locator_list_filters(locators, data)
 
         # 2. 处理 locator_ref (描述符)
         if isinstance(target, dict) and target.get("__type__") == "locator_ref":

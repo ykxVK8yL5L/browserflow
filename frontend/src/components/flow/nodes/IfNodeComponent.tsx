@@ -133,7 +133,7 @@ const IfNodeComponent = ({ id, data }: NodeProps) => {
             />
 
             {/* True Output Handle */}
-            <div className="absolute -bottom-3 left-1/4 flex flex-col items-center gap-0.5">
+            <div className="absolute -bottom-3 left-[30%] -translate-x-1/2 flex flex-col items-center gap-0.5">
                 <Handle
                     type="source"
                     position={Position.Bottom}
@@ -144,7 +144,7 @@ const IfNodeComponent = ({ id, data }: NodeProps) => {
             </div>
 
             {/* False Output Handle */}
-            <div className="absolute -bottom-3 left-2/4 flex flex-col items-center gap-0.5">
+            <div className="absolute -bottom-3 left-[70%] -translate-x-1/2 flex flex-col items-center gap-0.5">
                 <Handle
                     type="source"
                     position={Position.Bottom}

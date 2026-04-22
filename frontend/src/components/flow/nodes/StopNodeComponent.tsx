@@ -50,6 +50,7 @@ const ExecutionIndicator = ({ status }: { status: NodeExecutionStatus }) => {
 const StopNodeComponent = ({ id, data }: NodeProps) => {
     const { setNodes } = useReactFlow();
     const nodeData = data as Record<string, unknown>;
+    const nodeLabel = (nodeData.label as string) || (nodeData.stopType === "error" ? "Error Stop" : "Success Stop");
     const stopType = (nodeData.stopType as string) || "success";
     const errorMessage = (nodeData.errorMessage as string) || "";
     const execMessage = (nodeData._execMessage as string) || "";
@@ -90,7 +91,7 @@ const StopNodeComponent = ({ id, data }: NodeProps) => {
             <div className={`flex items-center gap-2 px-3 py-2 ${isError ? "bg-red-500/10" : "bg-emerald-500/10"} border-b border-border`}>
                 <Square size={14} className={disabled ? "text-muted-foreground" : iconClass} />
                 <span className={`text-xs font-mono font-bold truncate flex-1 ${disabled ? "text-muted-foreground line-through" : "text-foreground"}`}>
-                    {stopType === "error" ? "Error Stop" : "Success Stop"}
+                    {nodeLabel}
                 </span>
                 <ExecutionIndicator status={execStatus} />
                 {!isExec && (

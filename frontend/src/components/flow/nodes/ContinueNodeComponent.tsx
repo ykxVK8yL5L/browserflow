@@ -48,6 +48,7 @@ const ExecutionIndicator = ({ status }: { status: NodeExecutionStatus }) => {
 
 const ContinueNodeComponent = ({ data }: NodeProps) => {
     const nodeData = data as Record<string, unknown>;
+    const nodeLabel = (nodeData.label as string) || "Continue";
     const execStatus = (nodeData._execStatus as NodeExecutionStatus) || "idle";
     const execDuration = nodeData._execDuration as number | undefined;
     const execError = (nodeData._execError as string) || "";
@@ -61,7 +62,7 @@ const ContinueNodeComponent = ({ data }: NodeProps) => {
         <div className={`min-w-[150px] overflow-hidden rounded-lg ${borderClass} bg-sky-500/5 shadow-sm transition-all duration-300`}>
             <div className="flex items-center gap-2 border-b border-border bg-sky-500/10 px-3 py-2">
                 <SkipForward size={14} className="text-sky-500" />
-                <span className="truncate text-xs font-mono font-bold text-foreground flex-1">Continue</span>
+                <span className="truncate text-xs font-mono font-bold text-foreground flex-1">{nodeLabel}</span>
                 <ExecutionIndicator status={execStatus} />
             </div>
             <div className="px-3 py-2 text-[10px] font-mono text-muted-foreground">

@@ -366,6 +366,64 @@ const FlowCanvas = ({ initialNodes = [], initialEdges = [], isRunning = false, r
       nodePositions[node.id] = { x: pos.x, y: pos.y };
     });
 
+    const collectReachable = (startNodeId: string) => {
+      const reachable = new Set<string>();
+      const queue = [startNodeId];
+
+      while (queue.length > 0) {
+        const currentId = queue.shift()!;
+        if (reachable.has(currentId)) continue;
+        reachable.add(currentId);
+        edges.forEach((e) => {
+          if (e.source === currentId) queue.push(e.target);
+        });
+      }
+
+      return reachable;
+    };
+
+    const shiftReachableNodes = (reachable: Set<string>, deltaX: number) => {
+      reachable.forEach((nodeId) => {
+        const pos = nodePositions[nodeId];
+        if (pos) {
+          pos.x += deltaX;
+        }
+      });
+    };
+
+    const BRANCH_BASE_OFFSET = 180;
+    const DIRECT_BRANCH_MIN_GAP = 140;
+    const DIRECT_BRANCH_EXTRA_GAP = 90;
+
+    // First, fix direct true/false branch ordering for branching nodes.
+    // This prevents the true branch from ending up visually under the false handle after dagre layout.
+    nodes.forEach((node) => {
+      const outgoing = edges.filter((e) => e.source === node.id);
+      const trueEdge = outgoing.find((e) => e.sourceHandle === "true" || e.sourceHandle === "body");
+      const falseEdge = outgoing.find((e) => e.sourceHandle === "false" || e.sourceHandle === "done");
+
+      if (!trueEdge || !falseEdge) return;
+
+      const trueTargetPos = nodePositions[trueEdge.target];
+      const falseTargetPos = nodePositions[falseEdge.target];
+      if (!trueTargetPos || !falseTargetPos) return;
+
+      if (trueTargetPos.x >= falseTargetPos.x) {
+        const trueReachable = collectReachable(trueEdge.target);
+        const falseReachable = collectReachable(falseEdge.target);
+        const overlap = new Set([...trueReachable].filter((id) => falseReachable.has(id)));
+        const trueOnly = new Set([...trueReachable].filter((id) => !overlap.has(id)));
+        const falseOnly = new Set([...falseReachable].filter((id) => !overlap.has(id)));
+        const gap = Math.max(
+          DIRECT_BRANCH_MIN_GAP,
+          Math.abs(trueTargetPos.x - falseTargetPos.x) / 2 + DIRECT_BRANCH_EXTRA_GAP,
+        );
+
+        shiftReachableNodes(trueOnly, -gap);
+        shiftReachableNodes(falseOnly, gap);
+      }
+    });
+
     const trueReachable = new Set<string>();
     const falseReachable = new Set<string>();
 
@@ -398,9 +456,9 @@ const FlowCanvas = ({ initialNodes = [], initialEdges = [], isRunning = false, r
       const isFalse = falseReachable.has(node.id);
 
       if (isTrue && !isFalse) {
-        pos.x -= 300;
+        pos.x -= BRANCH_BASE_OFFSET;
       } else if (isFalse && !isTrue) {
-        pos.x += 300;
+        pos.x += BRANCH_BASE_OFFSET;
       }
     });
 

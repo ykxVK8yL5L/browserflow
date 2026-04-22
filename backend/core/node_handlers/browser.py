@@ -482,7 +482,12 @@ async def handle_all_node(
 async def handle_first_node(
     ctx, data: dict, normalized_node: dict, result, __: Any
 ) -> None:
-    locator = resolve_locator_target(ctx, data, normalized_node)
+    target_data = dict(data)
+    target_data.pop("first", None)
+    target_data.pop("last", None)
+    target_data.pop("index", None)
+
+    locator = resolve_locator_target(ctx, target_data, normalized_node)
 
     if locator is None:
         result.status = "skipped"
@@ -513,7 +518,12 @@ async def handle_first_node(
 async def handle_last_node(
     ctx, data: dict, normalized_node: dict, result, __: Any
 ) -> None:
-    locator = resolve_locator_target(ctx, data, normalized_node)
+    target_data = dict(data)
+    target_data.pop("first", None)
+    target_data.pop("last", None)
+    target_data.pop("index", None)
+
+    locator = resolve_locator_target(ctx, target_data, normalized_node)
     if locator is None:
         result.status = "skipped"
         result.message = "No selector or target provided"
@@ -543,7 +553,12 @@ async def handle_last_node(
 async def handle_nth_node(
     ctx, data: dict, normalized_node: dict, result, __: Any
 ) -> None:
-    locator = resolve_locator_target(ctx, data, normalized_node)
+    target_data = dict(data)
+    target_data.pop("index", None)
+    target_data.pop("first", None)
+    target_data.pop("last", None)
+
+    locator = resolve_locator_target(ctx, target_data, normalized_node)
     if locator is None:
         result.status = "skipped"
         result.message = "No selector or target provided"
