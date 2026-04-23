@@ -52,32 +52,25 @@ export interface CredentialFormData {
  * 从后端同步凭证列表
  */
 export async function fetchCredentials(): Promise<Credential[]> {
-  // 1. 获取列表 (CredentialListResponse)
-  const list = await apiCall<any[]>("/api/credentials");
+  const list = await apiCall<Credential[]>("/api/credentials");
 
-  // 2. 为每个凭证获取详情 (CredentialDetailResponse) 以获得 credential_data
-  const detailedCreds = await Promise.all(
-    list.map(async (item) => {
-      const detail = await apiCall<Credential>(`/api/credentials/${item.id}`);
-      const data = detail.credential_data || {};
-      return {
-        ...detail,
-        type: typeof data.type === "string" ? data.type : "text",
-        value:
-          detail.is_visible && typeof data.value === "string"
-            ? data.value
-            : detail.is_visible && typeof data.password === "string"
-              ? data.password
-              : detail.is_visible && typeof data.token === "string"
-                ? data.token
-                : detail.is_visible
-                  ? JSON.stringify(data)
-                  : "",
-      };
-    })
-  );
-
-  return detailedCreds;
+  return list.map((item) => {
+    const data = item.credential_data || {};
+    return {
+      ...item,
+      type: typeof data.type === "string" ? data.type : "text",
+      value:
+        item.is_visible && typeof data.value === "string"
+          ? data.value
+          : item.is_visible && typeof data.password === "string"
+            ? data.password
+            : item.is_visible && typeof data.token === "string"
+              ? data.token
+              : item.is_visible
+                ? JSON.stringify(data)
+                : "",
+    };
+  });
 }
 
 function buildCredentialPayload(data: CredentialFormData): Record<string, any> {

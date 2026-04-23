@@ -70,10 +70,12 @@ class CredentialListResponse(BaseModel):
     name: str
     site: str
     description: Optional[str]
+    credential_data: dict
     is_visible: bool
     is_valid: bool
     last_used: Optional[datetime]
     created_at: datetime
+    updated_at: datetime
 
     class Config:
         from_attributes = True
@@ -184,10 +186,16 @@ async def list_credentials(
             name=c.name,
             site=c.site,
             description=c.description,
+            credential_data=(
+                decrypt_credential_data(c.credential_data, user.id)
+                if c.is_visible
+                else {}
+            ),
             is_visible=c.is_visible,
             is_valid=c.is_valid,
             last_used=c.last_used,
             created_at=c.created_at,
+            updated_at=c.updated_at,
         )
         for c in credentials
     ]

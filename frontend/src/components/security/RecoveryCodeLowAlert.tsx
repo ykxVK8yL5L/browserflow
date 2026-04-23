@@ -3,6 +3,7 @@ import { AlertTriangle } from "lucide-react";
 import { getRecoveryCodes } from "@/lib/authStore";
 
 const LOW_RECOVERY_CODE_THRESHOLD = 5;
+export const RECOVERY_CODES_STATUS_CHANGED_EVENT = "recovery-codes:status-changed";
 
 const RecoveryCodeLowAlert = ({ userId }: { userId: string }) => {
     const [available, setAvailable] = useState<number | null>(null);
@@ -14,22 +15,14 @@ const RecoveryCodeLowAlert = ({ userId }: { userId: string }) => {
 
     useEffect(() => {
         loadRecoveryCodeStatus();
-
-        const intervalId = window.setInterval(loadRecoveryCodeStatus, 30000);
-        const handleFocus = () => loadRecoveryCodeStatus();
-        const handleVisibilityChange = () => {
-            if (document.visibilityState === "visible") {
-                loadRecoveryCodeStatus();
-            }
+        const handleStatusChanged = () => {
+            loadRecoveryCodeStatus();
         };
 
-        window.addEventListener("focus", handleFocus);
-        document.addEventListener("visibilitychange", handleVisibilityChange);
+        window.addEventListener(RECOVERY_CODES_STATUS_CHANGED_EVENT, handleStatusChanged);
 
         return () => {
-            window.clearInterval(intervalId);
-            window.removeEventListener("focus", handleFocus);
-            document.removeEventListener("visibilitychange", handleVisibilityChange);
+            window.removeEventListener(RECOVERY_CODES_STATUS_CHANGED_EVENT, handleStatusChanged);
         };
     }, [loadRecoveryCodeStatus]);
 

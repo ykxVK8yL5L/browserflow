@@ -6,6 +6,7 @@ import {
 } from "@/lib/authStore";
 import type { User } from "@/lib/authStore";
 import { LifeBuoy, Copy, RefreshCw, Loader2 } from "lucide-react";
+import { RECOVERY_CODES_STATUS_CHANGED_EVENT } from "./RecoveryCodeLowAlert";
 
 const RecoveryCodesView = ({ userId }: { userId: string }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -45,6 +46,7 @@ const RecoveryCodesView = ({ userId }: { userId: string }) => {
     if (codes) {
       setGeneratedCodes(codes);
       setData({ total: codes.length, usedCodes: [], available: codes.length });
+      window.dispatchEvent(new Event(RECOVERY_CODES_STATUS_CHANGED_EVENT));
     } else {
       alert("验证失败，无法重新生成恢复码");
     }
