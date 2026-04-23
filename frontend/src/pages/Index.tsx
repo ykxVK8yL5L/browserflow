@@ -1112,7 +1112,7 @@ const Index = () => {
                                 <div className="text-sm font-mono font-semibold text-foreground">{item.name}</div>
                                 <div className="text-xs text-muted-foreground">{item.description || "无描述"}</div>
                                 <div className="text-[11px] font-mono text-muted-foreground">
-                                  作者：{item.author || "官方"} · 排序：{item.sort_order ?? 0}
+                                  作者：{item.author || "官方"}
                                 </div>
                               </div>
                               {item.tags.length > 0 ? (
