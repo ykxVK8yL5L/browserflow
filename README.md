@@ -691,3 +691,9 @@ https://example.com/detail/123
 	"type": "continue"
 }
 ```
+
+## Thanks to 
+
+- [loveable](https://loveable.dev/)
+- [codex](https://github.com/openai/codex)
+- [nvidia](https://build.nvidia.com/)
