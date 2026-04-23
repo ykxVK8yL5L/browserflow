@@ -123,6 +123,19 @@ def decrypt_credential_data(encrypted_data: str, user_id: str) -> dict:
         return {}
 
 
+def build_safe_credential_response_data(data: dict, is_visible: bool) -> dict:
+    """构建可返回给前端的凭证数据。
+
+    不可见凭证不返回敏感内容，但保留非敏感的类型信息，
+    以便前端列表和详情页能正确展示 credential 类型。
+    """
+    if is_visible:
+        return data
+
+    credential_type = data.get("type") if isinstance(data, dict) else None
+    return {"type": credential_type} if isinstance(credential_type, str) else {}
+
+
 # ============== API 端点 ==============
 
 
@@ -186,10 +199,9 @@ async def list_credentials(
             name=c.name,
             site=c.site,
             description=c.description,
-            credential_data=(
-                decrypt_credential_data(c.credential_data, user.id)
-                if c.is_visible
-                else {}
+            credential_data=build_safe_credential_response_data(
+                decrypt_credential_data(c.credential_data, user.id),
+                c.is_visible,
             ),
             is_visible=c.is_visible,
             is_valid=c.is_valid,
@@ -224,7 +236,10 @@ async def get_credential(
 
     # 解密凭证数据
     decrypted_data = decrypt_credential_data(credential.credential_data, user.id)
-    response_data = decrypted_data if credential.is_visible else {}
+    response_data = build_safe_credential_response_data(
+        decrypted_data,
+        credential.is_visible,
+    )
 
     return CredentialDetailResponse(
         id=credential.id,
