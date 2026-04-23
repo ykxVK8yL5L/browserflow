@@ -29,7 +29,7 @@ import {
 import CredentialsManager from "@/components/flow/CredentialsManager";
 import FlowNotificationsEditor from "@/components/flow/FlowNotificationsEditor";
 import IdentityManager from "@/components/flow/IdentityManager";
-import PlatformSettings from "@/components/flow/PlatformSettings";
+import SystemSettings from "@/components/flow/SystemSettings";
 import ScheduleDialog from "@/components/flow/ScheduleDialog";
 import SecuritySettings from "@/components/security/SecuritySettings";
 import { Switch } from "@/components/ui/switch";
@@ -141,20 +141,20 @@ const FlowList = () => {
       setPasskeyLoginEnabled(settings.passkeyLoginEnabled);
     });
 
-    if (isAdmin) {
-      getNotificationSettings()
-        .then((settings) => {
-          setNotificationChannels(settings.channels);
-          setNotificationDefinitions(settings.channel_definitions);
-          setNotificationEvents(settings.event_options);
-          setNotificationRecipients(settings.recipients);
-          setSystemNotificationEvents(settings.system_event_options);
-          setSystemNotificationRules(settings.system_rules);
-        })
-        .catch((error) => {
-          console.error("Failed to load notification settings:", error);
-        });
+    getNotificationSettings()
+      .then((settings) => {
+        setNotificationChannels(settings.channels);
+        setNotificationDefinitions(settings.channel_definitions);
+        setNotificationEvents(settings.event_options);
+        setNotificationRecipients(settings.recipients);
+        setSystemNotificationEvents(settings.system_event_options);
+        setSystemNotificationRules(settings.system_rules);
+      })
+      .catch((error) => {
+        console.error("Failed to load notification settings:", error);
+      });
 
+    if (isAdmin) {
       getTemplateSettings()
         .then((settings) => {
           setTemplateFeatureEnabled(settings.feature_enabled);
@@ -803,7 +803,7 @@ const FlowList = () => {
           onChanged={handleSchedulesChanged}
         />
 
-        <PlatformSettings
+        <SystemSettings
           open={settingsOpen}
           onClose={() => setSettingsOpen(false)}
           isAdmin={isAdmin}

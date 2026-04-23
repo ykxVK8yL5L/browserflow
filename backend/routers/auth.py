@@ -15,7 +15,7 @@ import base64
 import qrcode
 
 from models.database import get_db
-from models.db_models import UserModel, SessionModel, ApiKeyModel, AuthSettingsModel
+from models.db_models import UserModel, SessionModel, ApiKeyModel, PlatformSettingsModel
 from models.user import (
     UserCreate,
     UserLogin,
@@ -62,6 +62,34 @@ from core.notifications import dispatch_system_notification
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 security = HTTPBearer(auto_error=False)
 
+PLATFORM_SETTING_DEFINITIONS = {
+    "auth.registration_enabled": {
+        "default": True,
+        "type": "bool",
+        "description": "是否允许新用户注册",
+    },
+    "auth.passkey_login_enabled": {
+        "default": False,
+        "type": "bool",
+        "description": "是否启用 Passkey 登录入口",
+    },
+    "auth.otp_required": {
+        "default": True,
+        "type": "bool",
+        "description": "启用 OTP 的用户登录时是否必须进行 OTP 验证",
+    },
+    "templates.feature_enabled": {
+        "default": True,
+        "type": "bool",
+        "description": "模板平台功能总开关",
+    },
+    "templates.index_url": {
+        "default": "https://raw.githubusercontent.com/ykxVK8yL5L/browserflow/main/templates/index.json",
+        "type": "string",
+        "description": "模板索引地址",
+    },
+}
+
 # 临时保存已发起但尚未完成确认的 OTP 重置请求，恢复码仅在确认成功后消费
 pending_otp_reset_codes: dict[str, dict[str, datetime | str]] = {}
 
@@ -102,7 +130,7 @@ async def emit_login_notification(user: UserModel, request: Request) -> None:
             },
         },
     }
-    await dispatch_system_notification("user_login", payload)
+    await dispatch_system_notification("user_login", payload, user.id)
 
 
 def generate_qr_base64(uri: str) -> str:
@@ -186,15 +214,114 @@ def get_client_info(request: Request) -> tuple:
     return user_agent, ip_address
 
 
-def get_or_create_auth_settings(db: Session) -> AuthSettingsModel:
-    """获取或创建认证设置"""
-    settings = db.query(AuthSettingsModel).first()
-    if not settings:
-        settings = AuthSettingsModel()
-        db.add(settings)
+def _serialize_platform_setting(value, value_type: str) -> str:
+    if value_type == "bool":
+        return "true" if bool(value) else "false"
+    if value_type == "int":
+        return str(int(value))
+    if value_type == "float":
+        return str(float(value))
+    if value_type == "json":
+        return json.dumps(value, ensure_ascii=False)
+    return "" if value is None else str(value)
+
+
+def _deserialize_platform_setting(raw_value: str | None, value_type: str):
+    if raw_value is None:
+        return None
+    if value_type == "bool":
+        return str(raw_value).strip().lower() in {"1", "true", "yes", "on"}
+    if value_type == "int":
+        return int(raw_value)
+    if value_type == "float":
+        return float(raw_value)
+    if value_type == "json":
+        return json.loads(raw_value)
+    return raw_value
+
+
+def ensure_platform_settings(db: Session) -> None:
+    existing = {
+        item.key: item for item in db.query(PlatformSettingsModel).all() if item.key
+    }
+    changed = False
+    for key, meta in PLATFORM_SETTING_DEFINITIONS.items():
+        item = existing.get(key)
+        if not item:
+            db.add(
+                PlatformSettingsModel(
+                    key=key,
+                    value=_serialize_platform_setting(meta["default"], meta["type"]),
+                    value_type=meta["type"],
+                    description=meta.get("description"),
+                )
+            )
+            changed = True
+            continue
+        if item.value_type != meta["type"]:
+            item.value_type = meta["type"]
+            changed = True
+        if meta.get("description") and item.description != meta.get("description"):
+            item.description = meta.get("description")
+            changed = True
+        if item.value is None:
+            item.value = _serialize_platform_setting(meta["default"], meta["type"])
+            changed = True
+    if changed:
         db.commit()
-        db.refresh(settings)
-    return settings
+
+
+def get_platform_setting(db: Session, key: str):
+    ensure_platform_settings(db)
+    meta = PLATFORM_SETTING_DEFINITIONS.get(key)
+    item = (
+        db.query(PlatformSettingsModel).filter(PlatformSettingsModel.key == key).first()
+    )
+    if not meta:
+        return None
+    if not item:
+        return meta["default"]
+    try:
+        value = _deserialize_platform_setting(
+            item.value, item.value_type or meta["type"]
+        )
+    except Exception:
+        value = None
+    return meta["default"] if value is None else value
+
+
+def set_platform_setting(db: Session, key: str, value) -> None:
+    ensure_platform_settings(db)
+    meta = PLATFORM_SETTING_DEFINITIONS[key]
+    item = (
+        db.query(PlatformSettingsModel).filter(PlatformSettingsModel.key == key).first()
+    )
+    serialized = _serialize_platform_setting(value, meta["type"])
+    if not item:
+        db.add(
+            PlatformSettingsModel(
+                key=key,
+                value=serialized,
+                value_type=meta["type"],
+                description=meta.get("description"),
+            )
+        )
+        return
+    item.value = serialized
+    item.value_type = meta["type"]
+    item.description = meta.get("description")
+
+
+def get_auth_settings_payload(db: Session) -> AuthSettingsResponse:
+    return AuthSettingsResponse(
+        registration_enabled=bool(
+            get_platform_setting(db, "auth.registration_enabled")
+        ),
+        passkey_login_enabled=bool(
+            get_platform_setting(db, "auth.passkey_login_enabled")
+        ),
+        otp_required=bool(get_platform_setting(db, "auth.otp_required")),
+    )
 
 
 # ============== 认证设置 ==============
@@ -203,12 +330,7 @@ def get_or_create_auth_settings(db: Session) -> AuthSettingsModel:
 @router.get("/settings", response_model=AuthSettingsResponse)
 async def get_auth_settings(db: Session = Depends(get_db)):
     """获取认证设置"""
-    settings = get_or_create_auth_settings(db)
-    return AuthSettingsResponse(
-        registration_enabled=settings.registration_enabled,
-        passkey_login_enabled=settings.passkey_login_enabled,
-        otp_required=settings.otp_required,
-    )
+    return get_auth_settings_payload(db)
 
 
 class UpdateSettingsRequest(BaseModel):
@@ -225,20 +347,16 @@ async def update_auth_settings(
 ):
     """更新认证设置"""
     ensure_admin(user)
-    settings = get_or_create_auth_settings(db)
     if data.registration_enabled is not None:
-        settings.registration_enabled = data.registration_enabled
+        set_platform_setting(db, "auth.registration_enabled", data.registration_enabled)
     if data.passkey_login_enabled is not None:
-        settings.passkey_login_enabled = data.passkey_login_enabled
+        set_platform_setting(
+            db, "auth.passkey_login_enabled", data.passkey_login_enabled
+        )
     if data.otp_required is not None:
-        settings.otp_required = data.otp_required
+        set_platform_setting(db, "auth.otp_required", data.otp_required)
     db.commit()
-    db.refresh(settings)
-    return AuthSettingsResponse(
-        registration_enabled=settings.registration_enabled,
-        passkey_login_enabled=settings.passkey_login_enabled,
-        otp_required=settings.otp_required,
-    )
+    return get_auth_settings_payload(db)
 
 
 # ============== 注册 ==============
@@ -247,10 +365,8 @@ async def update_auth_settings(
 @router.post("/register", response_model=dict)
 async def register(data: UserCreate, request: Request, db: Session = Depends(get_db)):
     """用户注册"""
-    settings = get_or_create_auth_settings(db)
-
     # 检查是否允许注册
-    if not settings.registration_enabled:
+    if not bool(get_platform_setting(db, "auth.registration_enabled")):
         # 检查是否没有任何用户（首次注册允许）
         user_count = db.query(UserModel).count()
         if user_count > 0:

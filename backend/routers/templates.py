@@ -13,8 +13,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from models.database import get_db
-from models.db_models import TemplateSettingsModel, UserModel
-from routers.auth import get_current_user
+from models.db_models import UserModel
+from routers.auth import get_current_user, get_platform_setting, set_platform_setting
 
 router = APIRouter(prefix="/api/templates", tags=["templates"])
 
@@ -77,21 +77,6 @@ class TemplateFlowResponse(BaseModel):
     author: str = "官方"
     nodes: List[Dict[str, Any]]
     edges: List[Dict[str, Any]]
-
-
-def get_or_create_template_settings(db: Session) -> TemplateSettingsModel:
-    settings = db.query(TemplateSettingsModel).first()
-    if not settings:
-        settings = TemplateSettingsModel(
-            feature_enabled=True,
-            index_url=DEFAULT_TEMPLATE_INDEX_URL,
-        )
-        db.add(settings)
-        db.flush()
-    if not settings.index_url:
-        settings.index_url = DEFAULT_TEMPLATE_INDEX_URL
-        db.flush()
-    return settings
 
 
 def normalize_index_url(value: str | None) -> str:
@@ -271,10 +256,12 @@ async def get_template_settings(
     db: Session = Depends(get_db),
 ):
     ensure_admin(user)
-    settings = get_or_create_template_settings(db)
     return TemplateSettingsResponse(
-        feature_enabled=bool(settings.feature_enabled),
-        index_url=normalize_index_url(settings.index_url),
+        feature_enabled=bool(get_platform_setting(db, "templates.feature_enabled")),
+        index_url=normalize_index_url(
+            get_platform_setting(db, "templates.index_url")
+            or DEFAULT_TEMPLATE_INDEX_URL
+        ),
     )
 
 
@@ -285,20 +272,24 @@ async def update_template_settings(
     db: Session = Depends(get_db),
 ):
     ensure_admin(user)
-    settings = get_or_create_template_settings(db)
 
     if data.feature_enabled is not None:
-        settings.feature_enabled = data.feature_enabled
+        set_platform_setting(db, "templates.feature_enabled", data.feature_enabled)
     if data.index_url is not None:
-        settings.index_url = normalize_index_url(data.index_url)
+        set_platform_setting(
+            db,
+            "templates.index_url",
+            normalize_index_url(data.index_url),
+        )
 
-    settings.updated_at = datetime.utcnow()
     db.commit()
-    db.refresh(settings)
 
     return TemplateSettingsResponse(
-        feature_enabled=bool(settings.feature_enabled),
-        index_url=normalize_index_url(settings.index_url),
+        feature_enabled=bool(get_platform_setting(db, "templates.feature_enabled")),
+        index_url=normalize_index_url(
+            get_platform_setting(db, "templates.index_url")
+            or DEFAULT_TEMPLATE_INDEX_URL
+        ),
     )
 
 
@@ -307,14 +298,15 @@ async def get_template_index(
     user: UserModel = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    settings = get_or_create_template_settings(db)
-    if not settings.feature_enabled:
+    if not bool(get_platform_setting(db, "templates.feature_enabled")):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="模板功能未启用",
         )
 
-    index_url = normalize_index_url(settings.index_url)
+    index_url = normalize_index_url(
+        get_platform_setting(db, "templates.index_url") or DEFAULT_TEMPLATE_INDEX_URL
+    )
     payload = fetch_remote_json(index_url)
     return normalize_index_payload(index_url, payload)
 
@@ -325,14 +317,15 @@ async def get_template_item(
     user: UserModel = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    settings = get_or_create_template_settings(db)
-    if not settings.feature_enabled:
+    if not bool(get_platform_setting(db, "templates.feature_enabled")):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="模板功能未启用",
         )
 
-    index_url = normalize_index_url(settings.index_url)
+    index_url = normalize_index_url(
+        get_platform_setting(db, "templates.index_url") or DEFAULT_TEMPLATE_INDEX_URL
+    )
     index_payload = normalize_index_payload(index_url, fetch_remote_json(index_url))
     item = next(
         (entry for entry in index_payload.items if entry.id == template_id), None

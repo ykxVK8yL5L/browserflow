@@ -88,6 +88,12 @@ class UserModel(Base):
     executions = relationship(
         "ExecutionModel", back_populates="user", cascade="all, delete-orphan"
     )
+    notification_settings = relationship(
+        "NotificationSettingsModel",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
 
 
 class SessionModel(Base):
@@ -133,14 +139,17 @@ class ApiKeyModel(Base):
     user = relationship("UserModel", back_populates="api_keys")
 
 
-class AuthSettingsModel(Base):
-    """认证设置表（单例）"""
+class PlatformSettingsModel(Base):
+    """平台设置表（Key => Value）"""
 
-    __tablename__ = "auth_settings"
+    __tablename__ = "platform_settings"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    registration_enabled = Column(Boolean, default=True)
-    passkey_login_enabled = Column(Boolean, default=False)
-    otp_required = Column(Boolean, default=True)
+    key = Column(String(128), nullable=False, unique=True, index=True)
+    value = Column(Text, nullable=True)
+    value_type = Column(String(32), nullable=False, default="string")
+    description = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class FlowModel(Base):
@@ -326,27 +335,17 @@ class NotificationChannelConfigModel(Base):
 
 
 class NotificationSettingsModel(Base):
-    """通知系统全局设置（单例）"""
+    """用户通知偏好设置"""
 
     __tablename__ = "notification_settings"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False, unique=True)
     recipients = Column(JSON, nullable=True)
     system_rules = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-
-class TemplateSettingsModel(Base):
-    """模板功能全局设置（单例）"""
-
-    __tablename__ = "template_settings"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    feature_enabled = Column(Boolean, default=True)
-    index_url = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    user = relationship("UserModel", back_populates="notification_settings")
 
 
 class NodeExecutionModel(Base):

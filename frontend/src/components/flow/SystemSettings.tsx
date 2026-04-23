@@ -27,7 +27,7 @@ import type {
     SystemNotificationRule,
 } from "@/lib/notificationApi";
 
-interface PlatformSettingsProps {
+interface SystemSettingsProps {
     open: boolean;
     onClose: () => void;
     isAdmin: boolean;
@@ -88,7 +88,7 @@ interface PlatformSettingsProps {
 
 type PlatformTab = "auth" | "notifications" | "tools";
 
-const PlatformSettings = ({
+const SystemSettings = ({
     open,
     onClose,
     isAdmin,
@@ -136,12 +136,12 @@ const PlatformSettings = ({
     onUserBackupDownload,
     onSystemBackupDownload,
     onRestoreUpload,
-}: PlatformSettingsProps) => {
+}: SystemSettingsProps) => {
     const [activeTab, setActiveTab] = useState<PlatformTab>("auth");
 
     useEffect(() => {
         if (open) {
-            setActiveTab(isAdmin ? "auth" : "tools");
+            setActiveTab(isAdmin ? "auth" : "notifications");
         }
     }, [open, isAdmin]);
 
@@ -176,7 +176,7 @@ const PlatformSettings = ({
                 >
                     <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
                         <h3 className="font-mono font-bold text-sm text-foreground">
-                            Platform Settings
+                            系统设置
                         </h3>
                         <button
                             onClick={onClose}
@@ -186,14 +186,14 @@ const PlatformSettings = ({
                         </button>
                     </div>
                     <div className="flex-1 flex flex-col min-h-0 p-4 gap-4">
-                        <div className={`grid w-full rounded-md bg-muted p-1 font-mono shrink-0 ${isAdmin ? "grid-cols-3" : "grid-cols-1"}`}>
+                        <div className={`grid w-full rounded-md bg-muted p-1 font-mono shrink-0 ${isAdmin ? "grid-cols-3" : "grid-cols-2"}`}>
                             {[
                                 ...(isAdmin
                                     ? [
                                         { id: "auth", label: "认证" },
-                                        { id: "notifications", label: "通知" },
                                     ]
                                     : []),
+                                { id: "notifications", label: "通知" },
                                 { id: "tools", label: "工具" },
                             ].map((tab) => (
                                 <button
@@ -257,85 +257,89 @@ const PlatformSettings = ({
                                         <div>
                                             <p className="text-sm font-mono text-foreground">通知设置</p>
                                             <p className="text-xs font-mono text-muted-foreground">
-                                                先启用通知通道，再统一维护接收者与系统事件通知规则。
+                                                {isAdmin
+                                                    ? "先启用通知通道，再统一维护接收者与系统事件通知规则。"
+                                                    : "在这里维护你自己的通知接收者、系统通知规则和测试发送。"}
                                             </p>
                                         </div>
                                     </div>
 
-                                    <div className="grid gap-3 lg:grid-cols-2">
-                                        {notificationChannels.map((channel) => (
-                                            <div key={channel.channel_type} className="rounded-md border border-border p-3 space-y-3">
-                                                <div className="flex items-center justify-between gap-3">
-                                                    <div>
-                                                        <p className="text-sm font-mono text-foreground">{channel.display_name}</p>
-                                                        <p className="text-xs font-mono text-muted-foreground">类型：{channel.channel_type}</p>
-                                                    </div>
-                                                    <Switch
-                                                        checked={channel.enabled}
-                                                        onCheckedChange={(checked) =>
-                                                            onNotificationChannelToggle(channel.channel_type, checked)
-                                                        }
-                                                    />
-                                                </div>
-                                                {channel.channel_type === "email" && (
-                                                    <>
-                                                        <input
-                                                            value={String(channel.config.smtp_from || "")}
-                                                            onChange={(e) =>
-                                                                onNotificationChannelDraftChange(channel.channel_type, {
-                                                                    ...channel.config,
-                                                                    smtp_from: e.target.value,
-                                                                })
+                                    {isAdmin && (
+                                        <div className="grid gap-3 lg:grid-cols-2">
+                                            {notificationChannels.map((channel) => (
+                                                <div key={channel.channel_type} className="rounded-md border border-border p-3 space-y-3">
+                                                    <div className="flex items-center justify-between gap-3">
+                                                        <div>
+                                                            <p className="text-sm font-mono text-foreground">{channel.display_name}</p>
+                                                            <p className="text-xs font-mono text-muted-foreground">类型：{channel.channel_type}</p>
+                                                        </div>
+                                                        <Switch
+                                                            checked={channel.enabled}
+                                                            onCheckedChange={(checked) =>
+                                                                onNotificationChannelToggle(channel.channel_type, checked)
                                                             }
-                                                            placeholder="默认发件人显示名，可选"
-                                                            className="w-full px-3 py-2 rounded-md bg-background border border-border text-sm font-mono"
                                                         />
-                                                        <button
-                                                            onClick={() =>
-                                                                onNotificationChannelDraftSave(channel.channel_type, channel.config)
-                                                            }
-                                                            className="px-3 py-2 rounded-md bg-secondary text-secondary-foreground text-xs font-mono hover:bg-secondary/80"
-                                                        >
-                                                            保存邮件配置
-                                                        </button>
-                                                    </>
-                                                )}
-                                                {channel.channel_type === "webhook" && (
-                                                    <>
-                                                        <div className="space-y-1">
-                                                            <label className="text-xs font-mono text-muted-foreground block">
-                                                                请求超时秒数
-                                                            </label>
+                                                    </div>
+                                                    {channel.channel_type === "email" && (
+                                                        <>
                                                             <input
-                                                                type="number"
-                                                                min={1}
-                                                                value={String(channel.config.timeout_seconds || 10)}
+                                                                value={String(channel.config.smtp_from || "")}
                                                                 onChange={(e) =>
                                                                     onNotificationChannelDraftChange(channel.channel_type, {
                                                                         ...channel.config,
-                                                                        timeout_seconds: Number(e.target.value) || 10,
+                                                                        smtp_from: e.target.value,
                                                                     })
                                                                 }
-                                                                placeholder="请求超时秒数"
+                                                                placeholder="默认发件人显示名，可选"
                                                                 className="w-full px-3 py-2 rounded-md bg-background border border-border text-sm font-mono"
                                                             />
-                                                            <p className="text-[11px] font-mono text-muted-foreground">
-                                                                webhook 请求最多等待多少秒，超时后会判定发送失败。
-                                                            </p>
-                                                        </div>
-                                                        <button
-                                                            onClick={() =>
-                                                                onNotificationChannelDraftSave(channel.channel_type, channel.config)
-                                                            }
-                                                            className="px-3 py-2 rounded-md bg-secondary text-secondary-foreground text-xs font-mono hover:bg-secondary/80"
-                                                        >
-                                                            保存 Webhook 配置
-                                                        </button>
-                                                    </>
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
+                                                            <button
+                                                                onClick={() =>
+                                                                    onNotificationChannelDraftSave(channel.channel_type, channel.config)
+                                                                }
+                                                                className="px-3 py-2 rounded-md bg-secondary text-secondary-foreground text-xs font-mono hover:bg-secondary/80"
+                                                            >
+                                                                保存邮件配置
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                    {channel.channel_type === "webhook" && (
+                                                        <>
+                                                            <div className="space-y-1">
+                                                                <label className="text-xs font-mono text-muted-foreground block">
+                                                                    请求超时秒数
+                                                                </label>
+                                                                <input
+                                                                    type="number"
+                                                                    min={1}
+                                                                    value={String(channel.config.timeout_seconds || 10)}
+                                                                    onChange={(e) =>
+                                                                        onNotificationChannelDraftChange(channel.channel_type, {
+                                                                            ...channel.config,
+                                                                            timeout_seconds: Number(e.target.value) || 10,
+                                                                        })
+                                                                    }
+                                                                    placeholder="请求超时秒数"
+                                                                    className="w-full px-3 py-2 rounded-md bg-background border border-border text-sm font-mono"
+                                                                />
+                                                                <p className="text-[11px] font-mono text-muted-foreground">
+                                                                    webhook 请求最多等待多少秒，超时后会判定发送失败。
+                                                                </p>
+                                                            </div>
+                                                            <button
+                                                                onClick={() =>
+                                                                    onNotificationChannelDraftSave(channel.channel_type, channel.config)
+                                                                }
+                                                                className="px-3 py-2 rounded-md bg-secondary text-secondary-foreground text-xs font-mono hover:bg-secondary/80"
+                                                            >
+                                                                保存 Webhook 配置
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
 
                                     <SystemNotificationRulesEditor
                                         value={systemNotificationRules}
@@ -636,4 +640,4 @@ const PlatformSettings = ({
     );
 };
 
-export default PlatformSettings;
+export default SystemSettings;

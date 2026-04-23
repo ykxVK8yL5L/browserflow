@@ -121,10 +121,20 @@ class NotificationTestSendResponse(BaseModel):
     details: List[NotificationTestSendResult]
 
 
-def get_or_create_notification_settings(db: Session) -> NotificationSettingsModel:
-    settings = db.query(NotificationSettingsModel).first()
+def get_or_create_notification_settings(
+    db: Session, user: UserModel
+) -> NotificationSettingsModel:
+    settings = (
+        db.query(NotificationSettingsModel)
+        .filter(NotificationSettingsModel.user_id == user.id)
+        .first()
+    )
     if not settings:
-        settings = NotificationSettingsModel(recipients=[], system_rules=[])
+        settings = NotificationSettingsModel(
+            user_id=user.id,
+            recipients=[],
+            system_rules=[],
+        )
         db.add(settings)
         db.flush()
     return settings
@@ -135,7 +145,6 @@ async def get_notification_settings(
     user: UserModel = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    ensure_admin(user)
     channel_map = get_notification_channel_map()
     return NotificationSystemSettingsResponse(
         channels=[
@@ -143,14 +152,14 @@ async def get_notification_settings(
         ],
         recipients=[
             NotificationRecipientResponse(**item)
-            for item in get_notification_recipients()
+            for item in get_notification_recipients(user.id)
         ],
         channel_definitions=notification_channel_definitions(),
         event_options=notification_rule_events(),
         system_event_options=system_notification_event_options(),
         system_rules=[
             SystemNotificationRuleResponse(**item)
-            for item in get_system_notification_rules()
+            for item in get_system_notification_rules(user.id)
         ],
     )
 
@@ -218,7 +227,6 @@ async def update_notification_recipients(
     user: UserModel = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    ensure_admin(user)
     supported_types = {
         item["type"] for item in notification_channel_definitions() if item.get("type")
     }
@@ -246,7 +254,7 @@ async def update_notification_recipients(
             }
         )
 
-    settings = get_or_create_notification_settings(db)
+    settings = get_or_create_notification_settings(db, user)
     settings.recipients = normalized
     settings.updated_at = datetime.utcnow()
     db.commit()
@@ -264,7 +272,6 @@ async def update_system_notification_rules(
     user: UserModel = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    ensure_admin(user)
     supported_events = {
         item["value"]
         for item in system_notification_event_options()
@@ -294,7 +301,7 @@ async def update_system_notification_rules(
             }
         )
 
-    settings = get_or_create_notification_settings(db)
+    settings = get_or_create_notification_settings(db, user)
     settings.system_rules = normalized
     settings.updated_at = datetime.utcnow()
     db.commit()
@@ -312,7 +319,6 @@ async def send_notification_test_message(
     user: UserModel = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    ensure_admin(user)
     if not data.send_to_all and not any(
         str(value).strip() for value in data.recipient_ids
     ):
@@ -322,6 +328,7 @@ async def send_notification_test_message(
         )
 
     result = await send_test_notification(
+        user_id=user.id,
         title=data.title.strip(),
         content=data.content.strip(),
         recipient_ids=data.recipient_ids,

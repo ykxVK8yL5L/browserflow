@@ -155,7 +155,9 @@ async def create_flow(
         is_template=data.is_template,
         identity_id=data.identity_id,
         notification_enabled=data.notification_enabled,
-        notification_rules=normalize_notification_rules(data.notification_rules),
+        notification_rules=normalize_notification_rules(
+            data.notification_rules, user.id
+        ),
     )
     db.add(flow)
     db.commit()
@@ -314,7 +316,9 @@ async def update_flow(
     if data.notification_enabled is not None:
         flow.notification_enabled = data.notification_enabled
     if data.notification_rules is not None:
-        flow.notification_rules = normalize_notification_rules(data.notification_rules)
+        flow.notification_rules = normalize_notification_rules(
+            data.notification_rules, user.id
+        )
 
     flow.updated_at = datetime.utcnow()
     db.commit()

@@ -40,6 +40,13 @@ def init_db():
     Base.metadata.create_all(bind=engine)
 
     with engine.begin() as conn:
+        table_names = {
+            row[0]
+            for row in conn.execute(
+                text("SELECT name FROM sqlite_master WHERE type='table'")
+            )
+        }
+
         user_columns = {
             row[1] for row in conn.execute(text("PRAGMA table_info(users)"))
         }
@@ -162,11 +169,24 @@ def init_db():
                     },
                 )
 
-        notification_settings_columns = {
-            row[1]
-            for row in conn.execute(text("PRAGMA table_info(notification_settings)"))
-        }
+        notification_settings_columns = (
+            {
+                row[1]
+                for row in conn.execute(
+                    text("PRAGMA table_info(notification_settings)")
+                )
+            }
+            if "notification_settings" in table_names
+            else set()
+        )
         if notification_settings_columns:
+            if "user_id" not in notification_settings_columns:
+                conn.execute(
+                    text(
+                        "ALTER TABLE notification_settings ADD COLUMN user_id VARCHAR(36)"
+                    )
+                )
+                notification_settings_columns.add("user_id")
             if "recipients" not in notification_settings_columns:
                 conn.execute(
                     text("ALTER TABLE notification_settings ADD COLUMN recipients JSON")
@@ -178,47 +198,286 @@ def init_db():
                     )
                 )
 
-        existing_notification_settings = conn.execute(
-            text("SELECT COUNT(*) FROM notification_settings")
-        ).scalar()
-        if not existing_notification_settings:
-            conn.execute(
-                text(
-                    "INSERT INTO notification_settings (recipients, system_rules) VALUES (:recipients, :system_rules)"
-                ),
-                {
-                    "recipients": "[]",
-                    "system_rules": "[]",
-                },
-            )
-
-        template_settings_columns = {
-            row[1] for row in conn.execute(text("PRAGMA table_info(template_settings)"))
-        }
-        if template_settings_columns:
-            if "feature_enabled" not in template_settings_columns:
+        legacy_notification_rows = []
+        if notification_settings_columns:
+            legacy_notification_rows = (
                 conn.execute(
                     text(
-                        "ALTER TABLE template_settings ADD COLUMN feature_enabled BOOLEAN DEFAULT 1"
+                        "SELECT id, user_id, recipients, system_rules, created_at, updated_at FROM notification_settings"
                     )
                 )
-            if "index_url" not in template_settings_columns:
-                conn.execute(
-                    text("ALTER TABLE template_settings ADD COLUMN index_url TEXT")
-                )
+                .mappings()
+                .all()
+            )
 
-        existing_template_settings = conn.execute(
-            text("SELECT COUNT(*) FROM template_settings")
-        ).scalar()
-        if not existing_template_settings:
+        platform_settings_columns = (
+            {
+                row[1]
+                for row in conn.execute(text("PRAGMA table_info(platform_settings)"))
+            }
+            if "platform_settings" in table_names
+            else set()
+        )
+
+        if (
+            "platform_settings" in table_names
+            and platform_settings_columns
+            and "key" not in platform_settings_columns
+        ):
+            legacy_platform_rows = (
+                conn.execute(
+                    text("SELECT * FROM platform_settings ORDER BY id ASC LIMIT 1")
+                )
+                .mappings()
+                .all()
+            )
+            conn.execute(
+                text("ALTER TABLE platform_settings RENAME TO platform_settings_legacy")
+            )
             conn.execute(
                 text(
-                    "INSERT INTO template_settings (feature_enabled, index_url) VALUES (:feature_enabled, :index_url)"
-                ),
-                {
-                    "feature_enabled": True,
-                    "index_url": None,
-                },
+                    "CREATE TABLE platform_settings (id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, key VARCHAR(128) NOT NULL, value TEXT, value_type VARCHAR(32) NOT NULL DEFAULT 'string', description TEXT, created_at DATETIME, updated_at DATETIME)"
+                )
+            )
+            conn.execute(
+                text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS ix_platform_settings_key ON platform_settings (key)"
+                )
+            )
+
+            if legacy_platform_rows:
+                legacy = legacy_platform_rows[0]
+                migrated_items = [
+                    (
+                        "auth.registration_enabled",
+                        legacy.get("registration_enabled"),
+                        "bool",
+                        "是否允许新用户注册",
+                    ),
+                    (
+                        "auth.passkey_login_enabled",
+                        legacy.get("passkey_login_enabled"),
+                        "bool",
+                        "是否启用 Passkey 登录入口",
+                    ),
+                    (
+                        "auth.otp_required",
+                        legacy.get("otp_required"),
+                        "bool",
+                        "启用 OTP 的用户登录时是否必须进行 OTP 验证",
+                    ),
+                    (
+                        "templates.feature_enabled",
+                        legacy.get("template_feature_enabled"),
+                        "bool",
+                        "模板平台功能总开关",
+                    ),
+                    (
+                        "templates.index_url",
+                        legacy.get("template_index_url"),
+                        "string",
+                        "模板索引地址",
+                    ),
+                ]
+                for key, value, value_type, description in migrated_items:
+                    if value is None and value_type == "string":
+                        serialized = None
+                    elif value_type == "bool":
+                        serialized = "true" if bool(value) else "false"
+                    else:
+                        serialized = str(value) if value is not None else None
+                    conn.execute(
+                        text(
+                            "INSERT INTO platform_settings (key, value, value_type, description, created_at, updated_at) VALUES (:key, :value, :value_type, :description, :created_at, :updated_at)"
+                        ),
+                        {
+                            "key": key,
+                            "value": serialized,
+                            "value_type": value_type,
+                            "description": description,
+                            "created_at": legacy.get("created_at"),
+                            "updated_at": legacy.get("updated_at"),
+                        },
+                    )
+
+            table_names = {
+                row[0]
+                for row in conn.execute(
+                    text("SELECT name FROM sqlite_master WHERE type='table'")
+                )
+            }
+            platform_settings_columns = {
+                row[1]
+                for row in conn.execute(text("PRAGMA table_info(platform_settings)"))
+            }
+
+        if platform_settings_columns:
+            if "value_type" not in platform_settings_columns:
+                conn.execute(
+                    text(
+                        "ALTER TABLE platform_settings ADD COLUMN value_type VARCHAR(32) DEFAULT 'string'"
+                    )
+                )
+            if "description" not in platform_settings_columns:
+                conn.execute(
+                    text("ALTER TABLE platform_settings ADD COLUMN description TEXT")
+                )
+
+        if "auth_settings" in table_names or "template_settings" in table_names:
+            auth_row = (
+                conn.execute(
+                    text(
+                        "SELECT registration_enabled, passkey_login_enabled, otp_required FROM auth_settings ORDER BY id ASC LIMIT 1"
+                    )
+                )
+                .mappings()
+                .first()
+                if "auth_settings" in table_names
+                else None
+            )
+            template_row = (
+                conn.execute(
+                    text(
+                        "SELECT feature_enabled, index_url FROM template_settings ORDER BY id ASC LIMIT 1"
+                    )
+                )
+                .mappings()
+                .first()
+                if "template_settings" in table_names
+                else None
+            )
+            existing_platform = conn.execute(
+                text("SELECT COUNT(*) FROM platform_settings")
+            ).scalar()
+            if not existing_platform:
+                migrated_items = [
+                    (
+                        "auth.registration_enabled",
+                        (
+                            "true"
+                            if (auth_row["registration_enabled"] if auth_row else True)
+                            else "false"
+                        ),
+                        "bool",
+                        "是否允许新用户注册",
+                    ),
+                    (
+                        "auth.passkey_login_enabled",
+                        (
+                            "true"
+                            if (
+                                auth_row["passkey_login_enabled"] if auth_row else False
+                            )
+                            else "false"
+                        ),
+                        "bool",
+                        "是否启用 Passkey 登录入口",
+                    ),
+                    (
+                        "auth.otp_required",
+                        (
+                            "true"
+                            if (auth_row["otp_required"] if auth_row else True)
+                            else "false"
+                        ),
+                        "bool",
+                        "启用 OTP 的用户登录时是否必须进行 OTP 验证",
+                    ),
+                    (
+                        "templates.feature_enabled",
+                        (
+                            "true"
+                            if (
+                                template_row["feature_enabled"]
+                                if template_row
+                                else True
+                            )
+                            else "false"
+                        ),
+                        "bool",
+                        "模板平台功能总开关",
+                    ),
+                    (
+                        "templates.index_url",
+                        template_row["index_url"] if template_row else None,
+                        "string",
+                        "模板索引地址",
+                    ),
+                ]
+                for key, value, value_type, description in migrated_items:
+                    conn.execute(
+                        text(
+                            "INSERT INTO platform_settings (key, value, value_type, description) VALUES (:key, :value, :value_type, :description)"
+                        ),
+                        {
+                            "key": key,
+                            "value": value,
+                            "value_type": value_type,
+                            "description": description,
+                        },
+                    )
+
+        existing_notification_by_user = (
+            {
+                row[0]
+                for row in conn.execute(
+                    text(
+                        "SELECT user_id FROM notification_settings WHERE user_id IS NOT NULL"
+                    )
+                )
+            }
+            if notification_settings_columns
+            else set()
+        )
+        if notification_settings_columns:
+            for row in legacy_notification_rows:
+                if row["user_id"]:
+                    continue
+                user_ids = [
+                    item[0]
+                    for item in conn.execute(
+                        text("SELECT id FROM users ORDER BY created_at ASC")
+                    )
+                ]
+                for user_id in user_ids:
+                    if user_id in existing_notification_by_user:
+                        continue
+                    conn.execute(
+                        text(
+                            "INSERT INTO notification_settings (user_id, recipients, system_rules, created_at, updated_at) VALUES (:user_id, :recipients, :system_rules, :created_at, :updated_at)"
+                        ),
+                        {
+                            "user_id": user_id,
+                            "recipients": row["recipients"] or "[]",
+                            "system_rules": row["system_rules"] or "[]",
+                            "created_at": row["created_at"],
+                            "updated_at": row["updated_at"],
+                        },
+                    )
+                    existing_notification_by_user.add(user_id)
+
+            for user_id in [
+                item[0]
+                for item in conn.execute(
+                    text("SELECT id FROM users ORDER BY created_at ASC")
+                )
+            ]:
+                if user_id in existing_notification_by_user:
+                    continue
+                conn.execute(
+                    text(
+                        "INSERT INTO notification_settings (user_id, recipients, system_rules) VALUES (:user_id, :recipients, :system_rules)"
+                    ),
+                    {
+                        "user_id": user_id,
+                        "recipients": "[]",
+                        "system_rules": "[]",
+                    },
+                )
+                existing_notification_by_user.add(user_id)
+
+            conn.execute(
+                text("DELETE FROM notification_settings WHERE user_id IS NULL")
             )
 
         credential_columns = {

@@ -302,12 +302,20 @@ def build_node_lines(nodes: List[Dict[str, Any]], include_data: bool) -> List[st
     return lines
 
 
-def get_notification_settings_record() -> NotificationSettingsModel:
+def get_notification_settings_record(user_id: str) -> NotificationSettingsModel:
     db = SessionLocal()
     try:
-        settings = db.query(NotificationSettingsModel).first()
+        settings = (
+            db.query(NotificationSettingsModel)
+            .filter(NotificationSettingsModel.user_id == user_id)
+            .first()
+        )
         if not settings:
-            settings = NotificationSettingsModel(recipients=[], system_rules=[])
+            settings = NotificationSettingsModel(
+                user_id=user_id,
+                recipients=[],
+                system_rules=[],
+            )
             db.add(settings)
             db.commit()
             db.refresh(settings)
@@ -334,8 +342,8 @@ def get_notification_settings_record() -> NotificationSettingsModel:
         db.close()
 
 
-def get_notification_recipients() -> List[Dict[str, Any]]:
-    settings = get_notification_settings_record()
+def get_notification_recipients(user_id: str) -> List[Dict[str, Any]]:
+    settings = get_notification_settings_record(user_id)
     recipients: List[Dict[str, Any]] = []
     for item in settings.recipients or []:
         normalized = _normalize_recipient(item)
@@ -344,12 +352,12 @@ def get_notification_recipients() -> List[Dict[str, Any]]:
     return recipients
 
 
-def get_notification_recipient_map() -> Dict[str, Dict[str, Any]]:
-    return {item["id"]: item for item in get_notification_recipients()}
+def get_notification_recipient_map(user_id: str) -> Dict[str, Dict[str, Any]]:
+    return {item["id"]: item for item in get_notification_recipients(user_id)}
 
 
-def get_system_notification_rules() -> List[Dict[str, Any]]:
-    settings = get_notification_settings_record()
+def get_system_notification_rules(user_id: str) -> List[Dict[str, Any]]:
+    settings = get_notification_settings_record(user_id)
     stored_rules = (
         settings.system_rules if isinstance(settings.system_rules, list) else []
     )
@@ -507,7 +515,7 @@ async def dispatch_flow_notifications(
             return
 
         channel_map = get_notification_channel_map()
-        recipient_map = get_notification_recipient_map()
+        recipient_map = get_notification_recipient_map(flow.user_id)
         rules = flow.notification_rules or []
         if not isinstance(rules, list):
             return
@@ -556,11 +564,13 @@ async def dispatch_flow_notifications(
         db.close()
 
 
-def normalize_notification_rules(value: Optional[Any]) -> List[Dict[str, Any]]:
+def normalize_notification_rules(
+    value: Optional[Any], user_id: str
+) -> List[Dict[str, Any]]:
     if not isinstance(value, list):
         return []
 
-    recipient_map = get_notification_recipient_map()
+    recipient_map = get_notification_recipient_map(user_id)
     normalized: List[Dict[str, Any]] = []
     for item in value:
         if not isinstance(item, dict):
@@ -658,16 +668,18 @@ def notification_channel_definitions() -> List[Dict[str, Any]]:
     ]
 
 
-async def dispatch_system_notification(event: str, payload: Dict[str, Any]) -> None:
+async def dispatch_system_notification(
+    event: str, payload: Dict[str, Any], user_id: str
+) -> None:
     if event not in DEFAULT_SYSTEM_EVENTS:
         return
 
     channel_map = get_notification_channel_map()
-    recipient_map = get_notification_recipient_map()
+    recipient_map = get_notification_recipient_map(user_id)
     rule = next(
         (
             item
-            for item in get_system_notification_rules()
+            for item in get_system_notification_rules(user_id)
             if item.get("event") == event
         ),
         None,
@@ -691,13 +703,14 @@ async def dispatch_system_notification(event: str, payload: Dict[str, Any]) -> N
 
 
 async def send_test_notification(
+    user_id: str,
     title: str,
     content: str,
     recipient_ids: Optional[List[str]] = None,
     send_to_all: bool = False,
 ) -> Dict[str, Any]:
     channel_map = get_notification_channel_map()
-    all_recipients = get_notification_recipients()
+    all_recipients = get_notification_recipients(user_id)
     recipient_map = {item["id"]: item for item in all_recipients}
 
     if send_to_all:

@@ -29,7 +29,7 @@ from models.database import get_db, SessionLocal
 from models.db_models import UserModel, SessionModel
 from routers.auth import (
     get_current_user,
-    get_or_create_auth_settings,
+    get_platform_setting,
     generate_jwt,
     generate_token,
     create_session_expiry,
@@ -169,7 +169,6 @@ async def passkey_login_begin(
     当注册被禁用时，不允许快速登录
     """
     global _quick_login_challenge
-    settings = get_or_create_auth_settings(db)
     username = data.get("username", "").lower().strip()
 
     # 快速登录模式（无用户名）- 使用 resident key
@@ -326,8 +325,8 @@ async def passkey_login_complete(
             )
 
     # 检查是否需要 OTP
-    settings = get_or_create_auth_settings(db)
-    if settings.otp_required and user.otp_enabled:
+    otp_required = bool(get_platform_setting(db, "auth.otp_required"))
+    if otp_required and user.otp_enabled:
         return {
             "ok": True,
             "requires_otp": True,
