@@ -1,8 +1,25 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { X, Plus, Trash2, Pencil, KeyRound, Eye, EyeOff, Copy } from "lucide-react";
-import { getCredentials, createCredential, updateCredential, deleteCredential, fetchCredentials, type Credential } from "@/lib/credentialStore";
+import {
+  createCredential,
+  updateCredential,
+  deleteCredential,
+  fetchCredentials,
+  type Credential,
+} from "@/lib/credentialStore";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import { Switch } from "@/components/ui/switch";
 
 interface CredentialsManagerProps {
   open: boolean;
@@ -14,7 +31,11 @@ const typeOptions: { label: string; value: Credential["type"] }[] = [
   { label: "API Key", value: "api_key" },
   { label: "Token", value: "token" },
   { label: "Text", value: "text" },
+  { label: "Dictionary", value: "dictionary" },
 ];
+
+const CREDENTIAL_PAGE_SIZE = 8;
+type CredentialDictionaryData = Record<string, unknown>;
 
 const inputClass =
   "w-full px-3 py-2 rounded-md bg-secondary border border-border text-foreground font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent";
@@ -28,13 +49,17 @@ const CredentialsManager = ({ open, onClose }: CredentialsManagerProps) => {
   const [type, setType] = useState<Credential["type"]>("password");
   const [value, setValue] = useState("");
   const [description, setDescription] = useState("");
+  const [isVisible, setIsVisible] = useState(true);
   const [visibleIds, setVisibleIds] = useState<Set<string>>(new Set());
+  const [dictionaryText, setDictionaryText] = useState('{\n  "username": "",\n  "password": ""\n}');
+  const [keyword, setKeyword] = useState("");
+  const [page, setPage] = useState(1);
 
-  const handleAuthExpired = () => {
+  const handleAuthExpired = useCallback(() => {
     toast.error("登录已过期，请重新登录");
     onClose();
     navigate("/");
-  };
+  }, [navigate, onClose]);
 
   useEffect(() => {
     if (open) {
@@ -51,37 +76,83 @@ const CredentialsManager = ({ open, onClose }: CredentialsManagerProps) => {
             return;
           }
           toast.error(message || "加载凭证失败");
-          setCredentials(getCredentials());
+          setCredentials([]);
         });
       setCreating(false);
       setEditing(null);
       setVisibleIds(new Set());
+      setKeyword("");
+      setPage(1);
     }
-  }, [open]);
+  }, [open, handleAuthExpired]);
 
-  const refresh = () => setCredentials(getCredentials());
+  const refresh = async () => {
+    try {
+      const nextCredentials = await fetchCredentials();
+      setCredentials(nextCredentials);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (
+        message === "Session expired or revoked"
+        || message === "Invalid or expired token"
+        || message === "Not authenticated"
+      ) {
+        handleAuthExpired();
+        return;
+      }
+      toast.error(message || "加载凭证失败");
+      setCredentials([]);
+    }
+  };
 
   const resetForm = () => {
     setName("");
     setType("password");
     setValue("");
     setDescription("");
+    setIsVisible(true);
+    setDictionaryText('{\n  "username": "",\n  "password": ""\n}');
     setCreating(false);
     setEditing(null);
   };
 
+  const parseDictionaryData = (): CredentialDictionaryData | null => {
+    try {
+      const parsed = JSON.parse(dictionaryText);
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        toast.error("Dictionary 类型必须是 JSON 对象");
+        return null;
+      }
+      return parsed;
+    } catch {
+      toast.error("Dictionary JSON 格式不正确");
+      return null;
+    }
+  };
+
   const handleCreate = async () => {
     if (!name.trim()) { toast.error("Name is required"); return; }
-    if (!value.trim()) { toast.error("Value is required"); return; }
+    let credentialData: CredentialDictionaryData | undefined;
+    if (type === "dictionary") {
+      credentialData = parseDictionaryData() || undefined;
+      if (!credentialData) return;
+    } else if (!value.trim()) { toast.error("Value is required"); return; }
     // Check for duplicate names
     if (credentials.some((c) => c.name === name.trim())) {
       toast.error("A credential with this name already exists");
       return;
     }
     try {
-      await createCredential({ name: name.trim(), type, value, description: description.trim() });
+      await createCredential({
+        name: name.trim(),
+        type,
+        value,
+        description: description.trim(),
+        credential_data: credentialData,
+        is_visible: isVisible,
+      });
       toast.success("Credential created");
-      refresh();
+      await refresh();
       resetForm();
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -100,15 +171,30 @@ const CredentialsManager = ({ open, onClose }: CredentialsManagerProps) => {
   const handleUpdate = async () => {
     if (!editing) return;
     if (!name.trim()) { toast.error("Name is required"); return; }
+    let credentialData: CredentialDictionaryData | undefined;
+    if (type === "dictionary" && editing.is_visible) {
+      credentialData = parseDictionaryData() || undefined;
+      if (!credentialData) return;
+    }
+    if (type !== "dictionary" && editing.is_visible && !value.trim()) {
+      toast.error("Value is required");
+      return;
+    }
     // Check for duplicate names (excluding self)
     if (credentials.some((c) => c.name === name.trim() && c.id !== editing.id)) {
       toast.error("A credential with this name already exists");
       return;
     }
     try {
-      await updateCredential(editing.id, { name: name.trim(), type, value, description: description.trim() });
+      await updateCredential(editing.id, {
+        name: name.trim(),
+        type,
+        value,
+        description: description.trim(),
+        credential_data: credentialData,
+      });
       toast.success("Credential updated");
-      refresh();
+      await refresh();
       resetForm();
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -128,7 +214,7 @@ const CredentialsManager = ({ open, onClose }: CredentialsManagerProps) => {
     try {
       await deleteCredential(id);
       toast.success("Credential deleted");
-      refresh();
+      await refresh();
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       if (
@@ -147,9 +233,13 @@ const CredentialsManager = ({ open, onClose }: CredentialsManagerProps) => {
     setEditing(cred);
     setCreating(false);
     setName(cred.name);
-    setType(cred.type);
-    setValue(cred.value);
+    setType((cred.type || "text") as Credential["type"]);
+    setValue(cred.value || "");
     setDescription(cred.description);
+    setIsVisible(cred.is_visible);
+    setDictionaryText(
+      cred.is_visible ? JSON.stringify(cred.credential_data || {}, null, 2) : '{\n  "username": "",\n  "password": ""\n}'
+    );
   };
 
   const openCreate = () => {
@@ -159,6 +249,8 @@ const CredentialsManager = ({ open, onClose }: CredentialsManagerProps) => {
     setType("password");
     setValue("");
     setDescription("");
+    setIsVisible(true);
+    setDictionaryText('{\n  "username": "",\n  "password": ""\n}');
   };
 
   const toggleVisible = (id: string) => {
@@ -177,6 +269,43 @@ const CredentialsManager = ({ open, onClose }: CredentialsManagerProps) => {
   const maskValue = (val: string) => "•".repeat(Math.min(val.length, 24));
 
   const showForm = creating || editing !== null;
+
+  const filteredCredentials = useMemo(() => {
+    const normalizedKeyword = keyword.trim().toLowerCase();
+    if (!normalizedKeyword) return credentials;
+
+    return credentials.filter((cred) => {
+      const searchText = [
+        cred.name,
+        cred.description,
+        cred.type,
+        cred.site,
+        JSON.stringify(cred.credential_data || {}),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return searchText.includes(normalizedKeyword);
+    });
+  }, [credentials, keyword]);
+
+  const pageCount = Math.max(1, Math.ceil(filteredCredentials.length / CREDENTIAL_PAGE_SIZE));
+
+  const pagedCredentials = useMemo(() => {
+    const safePage = Math.min(page, pageCount);
+    const startIndex = (safePage - 1) * CREDENTIAL_PAGE_SIZE;
+    return filteredCredentials.slice(startIndex, startIndex + CREDENTIAL_PAGE_SIZE);
+  }, [filteredCredentials, page, pageCount]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [keyword]);
+
+  useEffect(() => {
+    if (page > pageCount) {
+      setPage(pageCount);
+    }
+  }, [page, pageCount]);
 
   if (!open) return null;
 
@@ -214,7 +343,7 @@ const CredentialsManager = ({ open, onClose }: CredentialsManagerProps) => {
             <div className="space-y-4">
               <div>
                 <label className="text-xs font-mono font-medium text-muted-foreground uppercase tracking-wider block mb-1.5">Name</label>
-                <input
+                <Input
                   className={inputClass}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -233,24 +362,64 @@ const CredentialsManager = ({ open, onClose }: CredentialsManagerProps) => {
                   ))}
                 </select>
               </div>
-              <div>
-                <label className="text-xs font-mono font-medium text-muted-foreground uppercase tracking-wider block mb-1.5">Value</label>
-                <input
-                  className={inputClass}
-                  type={type === "text" ? "text" : "password"}
-                  value={value}
-                  onChange={(e) => setValue(e.target.value)}
-                  placeholder="Secret value"
-                />
-              </div>
+              {type === "dictionary" ? (
+                <div>
+                  <label className="text-xs font-mono font-medium text-muted-foreground uppercase tracking-wider block mb-1.5">Dictionary JSON</label>
+                  {editing && !editing.is_visible ? (
+                    <div className="min-h-[160px] rounded-md border border-border bg-secondary/40 px-3 py-2 text-sm font-mono text-muted-foreground flex items-center">
+                      当前凭证已设置为不可见，现有字典内容不会再明文展示。
+                    </div>
+                  ) : (
+                    <Textarea
+                      className="min-h-[160px] font-mono text-sm"
+                      value={dictionaryText}
+                      onChange={(e) => setDictionaryText(e.target.value)}
+                      placeholder='{"username":"demo","password":"123456"}'
+                    />
+                  )}
+                  <p className="text-xs text-muted-foreground/60 font-mono mt-1">
+                    可使用 <code className="text-primary/80">{"{{credential:" + (name || "name") + ".username}}"}</code>
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <label className="text-xs font-mono font-medium text-muted-foreground uppercase tracking-wider block mb-1.5">Value</label>
+                  {editing && !editing.is_visible ? (
+                    <div className="rounded-md border border-border bg-secondary/40 px-3 py-2 text-sm font-mono text-muted-foreground">
+                      当前凭证已设置为不可见，现有值不会再明文展示。
+                    </div>
+                  ) : (
+                    <Input
+                      className={inputClass}
+                      type={type === "text" ? "text" : "password"}
+                      value={value}
+                      onChange={(e) => setValue(e.target.value)}
+                      placeholder="Secret value"
+                    />
+                  )}
+                </div>
+              )}
               <div>
                 <label className="text-xs font-mono font-medium text-muted-foreground uppercase tracking-wider block mb-1.5">Description</label>
-                <input
+                <Input
                   className={inputClass}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Optional description"
                 />
+              </div>
+              <div className="rounded-lg border border-border p-3 space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-mono font-medium text-foreground uppercase tracking-wider">允许查看明文</p>
+                    <p className="text-xs text-muted-foreground font-mono mt-1">
+                      {editing
+                        ? "该选项仅可在创建时设置，创建后不可更改"
+                        : "关闭后，创建后将不再允许查看明文，仅执行时参与解析"}
+                    </p>
+                  </div>
+                  <Switch checked={isVisible} onCheckedChange={setIsVisible} disabled={!!editing} />
+                </div>
               </div>
               <div className="flex gap-2 pt-2">
                 <button onClick={resetForm} className="flex-1 px-3 py-2 rounded-md text-sm font-mono text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
@@ -273,8 +442,19 @@ const CredentialsManager = ({ open, onClose }: CredentialsManagerProps) => {
               </p>
             </div>
           ) : (
-            <div className="space-y-2">
-              {credentials.map((cred) => (
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Input
+                  value={keyword}
+                  onChange={(e) => setKeyword(e.target.value)}
+                  placeholder="快速搜索名称、描述、类型或字段内容"
+                />
+                <div className="text-xs font-mono text-muted-foreground flex items-center justify-between">
+                  <span>共 {filteredCredentials.length} 条</span>
+                  <span>第 {Math.min(page, pageCount)} / {pageCount} 页</span>
+                </div>
+              </div>
+              {pagedCredentials.map((cred) => (
                 <div
                   key={cred.id}
                   className="group flex items-start gap-3 p-3 rounded-lg border border-border hover:border-primary/30 transition-colors"
@@ -284,22 +464,31 @@ const CredentialsManager = ({ open, onClose }: CredentialsManagerProps) => {
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-sm font-semibold text-foreground truncate">{cred.name}</span>
                       <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-secondary text-muted-foreground uppercase">
-                        {cred.type.replace("_", " ")}
+                        {(cred.type || "text").replace("_", " ")}
                       </span>
+                      {!cred.is_visible && (
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-amber-500/15 text-amber-400 uppercase">
+                          hidden
+                        </span>
+                      )}
                     </div>
                     {cred.description && (
                       <p className="text-xs text-muted-foreground font-mono mt-0.5 truncate">{cred.description}</p>
                     )}
                     <div className="flex items-center gap-1.5 mt-1">
                       <code className="text-xs font-mono text-muted-foreground/70 truncate">
-                        {visibleIds.has(cred.id) ? cred.value : maskValue(cred.value)}
+                        {cred.is_visible
+                          ? (visibleIds.has(cred.id) ? (cred.value || "") : maskValue(cred.value || ""))
+                          : "创建后已隐藏，不可查看"}
                       </code>
-                      <button
-                        onClick={() => toggleVisible(cred.id)}
-                        className="p-0.5 text-muted-foreground hover:text-foreground transition-colors shrink-0"
-                      >
-                        {visibleIds.has(cred.id) ? <EyeOff size={12} /> : <Eye size={12} />}
-                      </button>
+                      {cred.is_visible && (
+                        <button
+                          onClick={() => toggleVisible(cred.id)}
+                          className="p-0.5 text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                        >
+                          {visibleIds.has(cred.id) ? <EyeOff size={12} /> : <Eye size={12} />}
+                        </button>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
@@ -327,6 +516,46 @@ const CredentialsManager = ({ open, onClose }: CredentialsManagerProps) => {
                   </div>
                 </div>
               ))}
+              {filteredCredentials.length > 0 && (
+                <Pagination className="mx-0 w-auto justify-end pt-2">
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setPage((current) => Math.max(1, current - 1));
+                        }}
+                        className={page <= 1 ? "pointer-events-none opacity-50" : ""}
+                      />
+                    </PaginationItem>
+                    {Array.from({ length: pageCount }, (_, index) => index + 1).map((pageNumber) => (
+                      <PaginationItem key={pageNumber}>
+                        <PaginationLink
+                          href="#"
+                          isActive={pageNumber === page}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setPage(pageNumber);
+                          }}
+                        >
+                          {pageNumber}
+                        </PaginationLink>
+                      </PaginationItem>
+                    ))}
+                    <PaginationItem>
+                      <PaginationNext
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setPage((current) => Math.min(pageCount, current + 1));
+                        }}
+                        className={page >= pageCount ? "pointer-events-none opacity-50" : ""}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              )}
             </div>
           )}
         </div>
@@ -334,8 +563,11 @@ const CredentialsManager = ({ open, onClose }: CredentialsManagerProps) => {
         {/* Footer hint */}
         {!showForm && credentials.length > 0 && (
           <div className="px-5 py-3 border-t border-border shrink-0">
-            <p className="text-xs text-muted-foreground/60 font-mono text-center">
-              Use <code className="text-primary/70">{"{{credential:name}}"}</code> in any node text field to inject a credential
+            <p className="text-xs text-muted-foreground/60 font-mono text-left">
+              使用<code className="text-primary/70">{"{{credential:name}}"}</code> 在节点中插入敏感信息
+            </p>
+            <p className="text-xs text-muted-foreground/50 font-mono text-left mt-1">
+              字典类型可用 <code className="text-primary/70">{"{{credential:name.key}}"}</code>
             </p>
           </div>
         )}

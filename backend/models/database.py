@@ -220,3 +220,11 @@ def init_db():
                     "index_url": None,
                 },
             )
+
+        credential_columns = {
+            row[1] for row in conn.execute(text("PRAGMA table_info(credentials)"))
+        }
+        if credential_columns and "is_visible" not in credential_columns:
+            conn.execute(
+                text("ALTER TABLE credentials ADD COLUMN is_visible BOOLEAN DEFAULT 1")
+            )

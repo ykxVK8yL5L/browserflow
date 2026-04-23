@@ -135,8 +135,22 @@ def parse_wait_duration_ms(value: Any) -> int:
         return 0
 
 
-def _load_user_credential_values(user_id: str) -> Dict[str, str]:
-    """加载用户凭证并转换为模板可替换的字符串值。"""
+def _credential_data_to_default_string(data: Any) -> Optional[str]:
+    """将 credential 数据转换为旧版模板兼容的字符串值。"""
+    if isinstance(data, dict):
+        value = data.get("value") or data.get("password") or data.get("token")
+        if value is not None:
+            return str(value)
+        return json.dumps(data, ensure_ascii=False)
+
+    if data is None:
+        return None
+
+    return str(data)
+
+
+def _load_user_credential_values(user_id: str) -> Dict[str, Any]:
+    """加载用户凭证并转换为模板可替换的值。"""
     db = SessionLocal()
     try:
         credentials = (
@@ -147,7 +161,7 @@ def _load_user_credential_values(user_id: str) -> Dict[str, str]:
             .all()
         )
 
-        resolved: Dict[str, str] = {}
+        resolved: Dict[str, Any] = {}
         for credential in credentials:
             try:
                 raw_json = decrypt_data(credential.credential_data, user_id)
@@ -158,25 +172,55 @@ def _load_user_credential_values(user_id: str) -> Dict[str, str]:
                 )
                 continue
 
-            value = None
-            if isinstance(data, dict):
-                value = data.get("value") or data.get("password") or data.get("token")
-                if value is None:
-                    value = json.dumps(data, ensure_ascii=False)
-
-            if value is not None:
-                resolved[str(credential.name)] = str(value)
+            if data is not None:
+                resolved[str(credential.name)] = data
 
         return resolved
     finally:
         db.close()
 
 
-def _resolve_credential_templates(value: Any, credential_values: Dict[str, str]) -> Any:
-    """递归解析 `{{credential:name}}` 占位符。"""
+def _resolve_credential_reference(
+    reference: str, credential_values: Dict[str, Any]
+) -> Optional[str]:
+    """解析单个 credential 引用，支持 `name.key` 路径访问。"""
+    expression = reference.strip()
+    if not expression:
+        return None
+
+    parts = [part.strip() for part in expression.split(".") if part.strip()]
+    if not parts:
+        return None
+
+    credential_name = parts[0]
+    current_value = credential_values.get(credential_name)
+    if current_value is None:
+        return None
+
+    if len(parts) == 1:
+        return _credential_data_to_default_string(current_value)
+
+    for part in parts[1:]:
+        if not isinstance(current_value, dict):
+            return None
+        current_value = current_value.get(part)
+        if current_value is None:
+            return None
+
+    if isinstance(current_value, (dict, list)):
+        return json.dumps(current_value, ensure_ascii=False)
+
+    return str(current_value)
+
+
+def _resolve_credential_templates(value: Any, credential_values: Dict[str, Any]) -> Any:
+    """递归解析 `{{credential:name}}` 与 `{{credential:name.key}}` 占位符。"""
     if isinstance(value, str):
         return CREDENTIAL_TEMPLATE_PATTERN.sub(
-            lambda match: credential_values.get(match.group(1), match.group(0)),
+            lambda match: _resolve_credential_reference(
+                match.group(1), credential_values
+            )
+            or match.group(0),
             value,
         )
 

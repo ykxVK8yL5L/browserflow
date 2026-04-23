@@ -32,6 +32,7 @@ class CredentialCreate(BaseModel):
     site: str = Field(..., min_length=1, max_length=256)
     credential_data: dict  # 凭证数据（用户名、密码等）
     description: Optional[str] = None
+    is_visible: bool = True
 
 
 class CredentialUpdate(BaseModel):
@@ -41,6 +42,7 @@ class CredentialUpdate(BaseModel):
     site: Optional[str] = Field(None, min_length=1, max_length=256)
     credential_data: Optional[dict] = None
     description: Optional[str] = None
+    is_visible: Optional[bool] = None
     is_valid: Optional[bool] = None
 
 
@@ -51,6 +53,7 @@ class CredentialResponse(BaseModel):
     name: str
     site: str
     description: Optional[str]
+    is_visible: bool
     is_valid: bool
     last_used: Optional[datetime]
     created_at: datetime
@@ -67,6 +70,7 @@ class CredentialListResponse(BaseModel):
     name: str
     site: str
     description: Optional[str]
+    is_visible: bool
     is_valid: bool
     last_used: Optional[datetime]
     created_at: datetime
@@ -83,6 +87,7 @@ class CredentialDetailResponse(BaseModel):
     site: str
     description: Optional[str]
     credential_data: dict
+    is_visible: bool
     is_valid: bool
     last_used: Optional[datetime]
     created_at: datetime
@@ -137,6 +142,7 @@ async def create_credential(
         site=data.site,
         credential_data=encrypted_data,
         description=data.description,
+        is_visible=data.is_visible,
     )
     db.add(credential)
     db.commit()
@@ -147,6 +153,7 @@ async def create_credential(
         name=credential.name,
         site=credential.site,
         description=credential.description,
+        is_visible=credential.is_visible,
         is_valid=credential.is_valid,
         last_used=credential.last_used,
         created_at=credential.created_at,
@@ -177,6 +184,7 @@ async def list_credentials(
             name=c.name,
             site=c.site,
             description=c.description,
+            is_visible=c.is_visible,
             is_valid=c.is_valid,
             last_used=c.last_used,
             created_at=c.created_at,
@@ -208,13 +216,15 @@ async def get_credential(
 
     # 解密凭证数据
     decrypted_data = decrypt_credential_data(credential.credential_data, user.id)
+    response_data = decrypted_data if credential.is_visible else {}
 
     return CredentialDetailResponse(
         id=credential.id,
         name=credential.name,
         site=credential.site,
         description=credential.description,
-        credential_data=decrypted_data,
+        credential_data=response_data,
+        is_visible=credential.is_visible,
         is_valid=credential.is_valid,
         last_used=credential.last_used,
         created_at=credential.created_at,
@@ -266,6 +276,7 @@ async def update_credential(
         name=credential.name,
         site=credential.site,
         description=credential.description,
+        is_visible=credential.is_visible,
         is_valid=credential.is_valid,
         last_used=credential.last_used,
         created_at=credential.created_at,

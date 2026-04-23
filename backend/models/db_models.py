@@ -191,6 +191,7 @@ class CredentialModel(Base):
     credential_data = Column(Text, nullable=False)  # 加密的 JSON 数据
     # 元数据
     description = Column(Text, nullable=True)
+    is_visible = Column(Boolean, default=True)
     last_used = Column(DateTime, nullable=True)
     is_valid = Column(Boolean, default=True)
     # 时间戳

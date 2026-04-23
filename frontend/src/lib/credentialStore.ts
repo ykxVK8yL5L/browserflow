@@ -31,6 +31,7 @@ export interface Credential {
   type?: string;
   description: string;
   credential_data: Record<string, any>;
+  is_visible: boolean;
   is_valid: boolean;
   last_used: string | null;
   created_at: string;
@@ -38,16 +39,13 @@ export interface Credential {
   value?: string;
 }
 
-const STORAGE_KEY = "browserflow-credentials";
-
-export function getCredentials(): Credential[] {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) return [];
-  return JSON.parse(raw);
-}
-
-function saveCredentials(creds: Credential[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(creds));
+export interface CredentialFormData {
+  name: string;
+  type: string;
+  value?: string;
+  description: string;
+  credential_data?: Record<string, any>;
+  is_visible?: boolean;
 }
 
 /**
@@ -66,106 +64,100 @@ export async function fetchCredentials(): Promise<Credential[]> {
         ...detail,
         type: typeof data.type === "string" ? data.type : "text",
         value:
-          typeof data.value === "string"
+          detail.is_visible && typeof data.value === "string"
             ? data.value
-            : typeof data.password === "string"
+            : detail.is_visible && typeof data.password === "string"
               ? data.password
-              : typeof data.token === "string"
+              : detail.is_visible && typeof data.token === "string"
                 ? data.token
-                : JSON.stringify(data),
+                : detail.is_visible
+                  ? JSON.stringify(data)
+                  : "",
       };
     })
   );
 
-  saveCredentials(detailedCreds);
   return detailedCreds;
 }
 
-export async function createCredential(data: {
-  name: string;
-  type: string;
-  value: string;
-  description: string;
-}): Promise<Credential> {
+function buildCredentialPayload(data: CredentialFormData): Record<string, any> {
+  if (data.type === "dictionary") {
+    return {
+      type: data.type,
+      ...(data.credential_data || {}),
+    };
+  }
+
+  return {
+    type: data.type,
+    value: data.value || "",
+  };
+}
+
+function getCredentialPreviewValue(data: Record<string, any>): string {
+  return typeof data.value === "string"
+    ? data.value
+    : typeof data.password === "string"
+      ? data.password
+      : typeof data.token === "string"
+        ? data.token
+        : JSON.stringify(data);
+}
+
+export async function createCredential(data: CredentialFormData): Promise<Credential> {
+  const credentialPayload = buildCredentialPayload(data);
   const payload = {
     name: data.name,
     site: "browserflow",
     description: data.description,
-    credential_data: {
-      type: data.type,
-      value: data.value,
-    },
+    is_visible: data.is_visible ?? true,
+    credential_data: credentialPayload,
   };
 
   const apiRes = await apiCall<Credential>("/api/credentials", {
     method: "POST",
     body: JSON.stringify(payload),
   });
-  const normalized: Credential = {
+  return {
     ...apiRes,
     type: data.type,
-    value: data.value,
-    credential_data: payload.credential_data,
+    value: (data.is_visible ?? true) ? getCredentialPreviewValue(credentialPayload) : "",
+    credential_data: credentialPayload,
+    is_visible: data.is_visible ?? true,
   };
-
-  const creds = getCredentials();
-  creds.push(normalized);
-  saveCredentials(creds);
-  return normalized;
 }
 
-export async function updateCredential(id: string, updates: Partial<Credential>): Promise<Credential> {
-  const existing = getCredentials().find((c) => c.id === id);
-  const nextType = typeof updates.type === "string" ? updates.type : existing?.type || "text";
-  const nextValue = typeof updates.value === "string" ? updates.value : existing?.value || "";
-  const apiRes = await apiCall<Credential>(`/api/credentials/${id}`, {
-    method: "PUT",
-    body: JSON.stringify({
-      name: updates.name,
-      description: updates.description,
-      is_valid: updates.is_valid,
-      credential_data: {
-        type: nextType,
-        value: nextValue,
-      },
-    }),
-  });
-  const normalized: Credential = {
-    ...apiRes,
-    type: nextType,
-    value: nextValue,
-    credential_data: {
-      type: nextType,
-      value: nextValue,
-    },
+export async function updateCredential(
+  id: string,
+  updates: Partial<Credential> & { credential_data?: Record<string, any> }
+): Promise<Credential> {
+  const nextType = typeof updates.type === "string" ? updates.type : "text";
+  const hasCredentialDataUpdate = typeof updates.credential_data !== "undefined";
+  const nextCredentialData = hasCredentialDataUpdate ? updates.credential_data : undefined;
+  const requestBody: Record<string, any> = {
+    name: updates.name,
+    description: updates.description,
+    is_visible: updates.is_visible,
+    is_valid: updates.is_valid,
   };
 
-  const creds = getCredentials();
-  const idx = creds.findIndex((c) => c.id === id);
-  if (idx !== -1) {
-    creds[idx] = normalized;
-    saveCredentials(creds);
+  if (hasCredentialDataUpdate) {
+    requestBody.credential_data = nextCredentialData;
   }
-  return normalized;
+
+  const apiRes = await apiCall<Credential>(`/api/credentials/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(requestBody),
+  });
+  return {
+    ...apiRes,
+    type: typeof apiRes.credential_data?.type === "string" ? apiRes.credential_data.type : nextType,
+    value: apiRes.is_visible ? getCredentialPreviewValue(apiRes.credential_data || {}) : "",
+    credential_data: apiRes.credential_data || {},
+    is_visible: apiRes.is_visible,
+  };
 }
 
 export async function deleteCredential(id: string): Promise<void> {
   await apiCall(`/api/credentials/${id}`, { method: "DELETE" });
-  saveCredentials(getCredentials().filter((c) => c.id !== id));
-}
-
-/**
- * Resolve credential references in a string.
- * References look like {{credential:name}} and get replaced with the credential's value.
- */
-export function resolveCredentials(text: string): string {
-  const creds = getCredentials();
-  return text.replace(/\{\{credential:([^}]+)\}\}/g, (match, name) => {
-    const cred = creds.find((c) => c.name === name);
-    if (!cred) return match;
-    
-    // 尝试从 credential_data 中寻找匹配的值 (例如 value 或 password)
-    const data = cred.credential_data;
-    return data.value || data.password || data.token || JSON.stringify(data);
-  });
 }

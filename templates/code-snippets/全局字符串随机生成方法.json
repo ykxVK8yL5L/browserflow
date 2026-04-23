@@ -3,26 +3,6 @@
   "description": "全局字符串随机生成方法",
   "nodes": [
     {
-      "id": "node_1776079158685",
-      "type": "navigate",
-      "nodeType": null,
-      "data": {
-        "label": "Navigate",
-        "nodeType": "navigate",
-        "captureScreenshot": false,
-        "screenshotTiming": "after",
-        "params": {
-          "url": "https://example.com"
-        },
-        "inputs": {},
-        "url": "https://example.com"
-      },
-      "position": {
-        "x": 0,
-        "y": 0
-      }
-    },
-    {
       "id": "node_1776079158686",
       "type": "set",
       "nodeType": null,
