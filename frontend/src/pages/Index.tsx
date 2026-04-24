@@ -70,6 +70,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Pagination,
   PaginationContent,
@@ -80,6 +81,7 @@ import {
 } from "@/components/ui/pagination";
 import type { RunSettings } from "@/lib/flowApi";
 import { getTemplateIndex, getTemplateItem, type TemplateIndexItem } from "@/lib/templateApi";
+import type { WaitForUserRequest } from "@/lib/websocketEngine";
 
 const initialExecState: FlowExecutionState = {
   status: "idle",
@@ -87,6 +89,10 @@ const initialExecState: FlowExecutionState = {
   logs: [],
   screenshot: undefined,
 };
+
+interface WaitForUserDialogState extends WaitForUserRequest {
+  executionId?: string;
+}
 
 // 执行模式：mock 使用本地模拟，websocket 连接后台真实执行
 // TODO: 后续可以从配置或环境变量读取
@@ -287,6 +293,8 @@ const Index = () => {
   const [templateCategoryFilter, setTemplateCategoryFilter] = useState<string>("all");
   const [templateKeyword, setTemplateKeyword] = useState("");
   const [templatePage, setTemplatePage] = useState(1);
+  const [waitForUserDialog, setWaitForUserDialog] = useState<WaitForUserDialogState | null>(null);
+  const [waitForUserValue, setWaitForUserValue] = useState("");
   const [runSettings, setRunSettings] = useState<Required<RunSettings>>(DEFAULT_RUN_SETTINGS);
   const [userAgents, setUserAgents] = useState<UserAgent[]>([]);
   const abortRef = useRef<AbortController | null>(null);
@@ -670,6 +678,11 @@ const Index = () => {
             }
             executor.disconnect();
           },
+          onWaitForUser: (request) => {
+            setWaitForUserDialog(request);
+            setWaitForUserValue(String(request.defaultValue ?? ""));
+            toast.info(request.title || "等待用户输入");
+          },
           onConnectionChange: (state) => {
             if (state === "error") toast.error("无法连接到后台服务器");
             else if (state === "connected") toast.success("已连接到后台服务器");
@@ -786,6 +799,34 @@ const Index = () => {
     };
   }, []);
 
+  const submitWaitForUser = useCallback((cancelled = false) => {
+    if (!waitForUserDialog || !wsExecutorRef.current) return;
+
+    if (!cancelled && waitForUserDialog.required && !waitForUserValue.trim()) {
+      toast.error("请输入内容后再继续");
+      return;
+    }
+
+    try {
+      wsExecutorRef.current.submitWaitForUserResponse(
+        waitForUserDialog.executionId || "",
+        waitForUserDialog.nodeId,
+        {
+          value: cancelled ? undefined : waitForUserValue,
+          confirmed: !cancelled,
+          cancelled,
+          message: cancelled ? "User cancelled input" : undefined,
+          submittedAt: new Date().toISOString(),
+        }
+      );
+      setWaitForUserDialog(null);
+      setWaitForUserValue("");
+    } catch (error) {
+      console.error("Failed to submit waitForUser response:", error);
+      toast.error(error instanceof Error ? error.message : "提交用户输入失败");
+    }
+  }, [waitForUserDialog, waitForUserValue]);
+
   const exitHistoryView = useCallback(() => {
     setHistorySnapshot(null);
     setHistoryNodeResults({});
@@ -855,6 +896,44 @@ const Index = () => {
 
   return (
     <div className="h-dvh flex flex-col bg-background">
+      <Dialog open={Boolean(waitForUserDialog)} onOpenChange={(open) => !open && submitWaitForUser(true)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{waitForUserDialog?.title || "等待用户输入"}</DialogTitle>
+            <DialogDescription>
+              {waitForUserDialog?.message || "请输入内容后继续执行"}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            {waitForUserDialog?.inputType === "textarea" ? (
+              <Textarea
+                value={waitForUserValue}
+                onChange={(e) => setWaitForUserValue(e.target.value)}
+                placeholder={waitForUserDialog?.placeholder || "请输入内容"}
+                autoFocus
+              />
+            ) : (
+              <Input
+                type={waitForUserDialog?.inputType === "password" ? "password" : "text"}
+                value={waitForUserValue}
+                onChange={(e) => setWaitForUserValue(e.target.value)}
+                placeholder={waitForUserDialog?.placeholder || "请输入内容"}
+                autoFocus
+              />
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => submitWaitForUser(true)}>
+              {waitForUserDialog?.cancelText || "Cancel"}
+            </Button>
+            <Button onClick={() => submitWaitForUser(false)}>
+              {waitForUserDialog?.confirmText || "Submit"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <header className={`border-b border-border bg-card shrink-0 px-3 sm:px-4 py-2 ${isMobile ? "flex flex-col gap-2" : "h-12 flex items-center gap-3"}`}>
         <div className="min-w-0 flex items-center gap-2 flex-1">
           <button

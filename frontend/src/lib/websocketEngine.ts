@@ -81,12 +81,25 @@ export interface ScreenshotData {
 
 // WebSocket 消息类型（后台 -> 前端）
 interface WebSocketMessage {
-  type: "connected" | "nodeStart" | "nodeComplete" | "flowComplete" | "error" | "authRequired" | "screenshot" | "log" | "pong";
+  type: "connected" | "nodeStart" | "nodeComplete" | "flowComplete" | "error" | "authRequired" | "screenshot" | "log" | "pong" | "waitForUser";
   executionId?: string;
   result?: NodeExecutionResult;
   status?: "completed" | "failed" | "stopped" | "cancelled";
   message?: string;
   data?: ScreenshotData;
+}
+
+export interface WaitForUserRequest {
+  nodeId: string;
+  title?: string;
+  message?: string;
+  inputType?: "text" | "textarea" | "password";
+  placeholder?: string;
+  defaultValue?: string;
+  confirmText?: string;
+  cancelText?: string;
+  required?: boolean;
+  timeoutMs?: number;
 }
 
 // 认证信息
@@ -100,6 +113,7 @@ export interface ExecutionCallbacks {
   onNodeComplete: (result: NodeExecutionResult) => void;
   onLog: (log: ExecutionLog) => void;
   onFlowComplete: (status: "completed" | "failed" | "stopped") => void;
+  onWaitForUser?: (request: WaitForUserRequest & { executionId?: string }) => void;
   onConnectionChange?: (state: ConnectionState) => void;
   onAuthRequired?: () => void;
   onScreenshot?: (data: ScreenshotData) => void;  // 实时截图回调
@@ -390,6 +404,21 @@ export class WebSocketFlowExecutor {
             });
           }
           break;
+
+        case "waitForUser":
+          if (msg.data && typeof msg.data === "object") {
+            this.callbacks.onWaitForUser?.({
+              executionId: msg.executionId,
+              ...(msg.data as unknown as WaitForUserRequest),
+            });
+            this.callbacks.onLog({
+              timestamp: new Date().toISOString(),
+              nodeId: (msg.data as WaitForUserRequest).nodeId,
+              level: "warn",
+              message: (msg.data as WaitForUserRequest).message || "等待用户输入",
+            });
+          }
+          break;
       }
     } catch (e) {
       console.error("[WebSocketExecutor] Failed to parse message:", data, e);
@@ -475,6 +504,29 @@ export class WebSocketFlowExecutor {
       level: "warn",
       message: `已请求停止执行 ${this.currentExecutionId}`,
     });
+  }
+
+  submitWaitForUserResponse(
+    executionId: string,
+    nodeId: string,
+    payload: {
+      value?: string;
+      confirmed?: boolean;
+      cancelled?: boolean;
+      message?: string;
+      submittedAt?: string;
+    }
+  ): void {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      throw new Error("WebSocket not connected");
+    }
+
+    this.ws.send(JSON.stringify({
+      type: "waitForUserResponse",
+      executionId,
+      nodeId,
+      payload,
+    }));
   }
 
   /** 断开连接 */

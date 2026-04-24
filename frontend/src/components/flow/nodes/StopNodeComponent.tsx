@@ -81,13 +81,11 @@ const StopNodeComponent = ({ id, data }: NodeProps) => {
             ? "border-2 border-muted opacity-45"
             : `border-2 ${colorClass}`;
 
-    const fallbackMessage = isError && errorMessage
-        ? errorMessage
-        : (isError ? "Terminating with error:" + errorMessage : "Flow completed successfully:" + errorMessage);
-    const displayMessage = execMessage || fallbackMessage;
+    const configuredMessage = errorMessage || "";
+    const displayMessage = execMessage || "";
 
     return (
-        <div className={`min-w-[150px] rounded-lg ${borderClass} shadow-sm overflow-hidden transition-all duration-300`}>
+        <div className={`min-w-[150px] max-w-[260px] rounded-lg ${borderClass} shadow-sm overflow-hidden transition-all duration-300`}>
             <div className={`flex items-center gap-2 px-3 py-2 ${isError ? "bg-red-500/10" : "bg-emerald-500/10"} border-b border-border`}>
                 <Square size={14} className={disabled ? "text-muted-foreground" : iconClass} />
                 <span className={`text-xs font-mono font-bold truncate flex-1 ${disabled ? "text-muted-foreground line-through" : "text-foreground"}`}>
@@ -104,9 +102,21 @@ const StopNodeComponent = ({ id, data }: NodeProps) => {
                     </button>
                 )}
             </div>
-            <div className="px-3 py-2 text-[10px] font-mono text-muted-foreground truncate">
-                {displayMessage}
-            </div>
+            {(configuredMessage || displayMessage) && (
+                <div className="px-3 py-2 min-w-0">
+                    {displayMessage ? (
+                        <TruncatedMessage
+                            text={displayMessage}
+                            dialogTitle="Stop 节点内容"
+                            className="text-[10px] font-mono text-muted-foreground"
+                        />
+                    ) : (
+                        <div className="text-[10px] font-mono text-muted-foreground truncate">
+                            {configuredMessage}
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Execution result footer */}
             {isExec && (

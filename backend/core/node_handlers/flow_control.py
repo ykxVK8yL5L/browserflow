@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 import secrets
 import string
+import json
 from types import SimpleNamespace
 from typing import Any
 import uuid
@@ -14,6 +15,7 @@ from .common import (
     resolve_output_reference,
     resolve_output_reference_for_eval,
 )
+from ..user_input import UserInputCancelledError, request_user_input
 
 
 def _parse_variable_literal(raw_value: Any, value_type: str | None) -> Any:
@@ -360,6 +362,85 @@ async def handle_random_node(
         if count == 1
         else f"Generated {count} random {kind} values"
     )
+
+
+async def handle_wait_for_user_node(
+    ctx, data: dict, normalized_node: dict, result, __: Any
+) -> None:
+    resolved_inputs = normalized_node.get("resolved_inputs", {}) or {}
+
+    title = str(
+        resolved_inputs.get("title") or data.get("title") or "Waiting for user input"
+    )
+    message = str(
+        resolved_inputs.get("message")
+        or data.get("message")
+        or "Please provide the required value to continue execution."
+    )
+    input_type = str(data.get("inputType") or "text").strip().lower() or "text"
+    if input_type not in {"text", "textarea", "password"}:
+        input_type = "text"
+
+    placeholder = str(
+        resolved_inputs.get("placeholder") or data.get("placeholder") or ""
+    )
+    default_value = resolved_inputs.get("defaultValue")
+    if default_value is None:
+        default_value = data.get("defaultValue")
+
+    confirm_text = str(data.get("confirmText") or "Submit")
+    cancel_text = str(data.get("cancelText") or "Cancel")
+    required = bool(data.get("required"))
+
+    try:
+        timeout_ms = max(0, int(float(data.get("timeoutMs") or 0)))
+    except (TypeError, ValueError):
+        timeout_ms = 0
+
+    try:
+        response = await request_user_input(
+            client_id=ctx.item.client_id,
+            execution_id=ctx.item.execution_id,
+            node_id=normalized_node["id"],
+            title=title,
+            message=message,
+            input_type=input_type,
+            placeholder=placeholder,
+            default_value=default_value,
+            confirm_text=confirm_text,
+            cancel_text=cancel_text,
+            required=required,
+            timeout_ms=timeout_ms,
+        )
+    except TimeoutError:
+        result.status = "failed"
+        result.error = "Timed out waiting for user input"
+        result.message = "Wait for user timed out"
+        return
+    except UserInputCancelledError as exc:
+        result.status = "failed"
+        result.error = str(exc)
+        result.message = "User cancelled input"
+        return
+
+    value = response.get("value")
+    if required and (value is None or str(value).strip() == ""):
+        result.status = "failed"
+        result.error = "User input is required"
+        result.message = "Wait for user received empty input"
+        return
+
+    result.data = {
+        "result": value,
+        "value": value,
+        "confirmed": bool(response.get("confirmed", True)),
+        "submittedAt": response.get("submittedAt"),
+        "inputType": input_type,
+        "title": title,
+        "message": message,
+    }
+    ctx.outputs[normalized_node["id"]] = result.data
+    result.message = f"Received user input for {normalized_node['id']}"
 
 
 def _normalize_map_expression(expression: str, item_name: str) -> str:

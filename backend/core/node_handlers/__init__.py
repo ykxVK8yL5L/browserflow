@@ -69,6 +69,7 @@ from .flow_control import (
     handle_random_node,
     handle_stop_node,
     handle_set_variable_node,
+    handle_wait_for_user_node,
     handle_while_node,
 )
 
@@ -132,6 +133,7 @@ NODE_HANDLERS = {
     "stop": handle_stop_node,
     "set": handle_set_variable_node,
     "random": handle_random_node,
+    "waitForUser": handle_wait_for_user_node,
 }
 
 __all__ = [

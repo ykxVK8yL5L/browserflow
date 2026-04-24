@@ -21,6 +21,7 @@ from core.websocket_manager import ws_manager
 from core.identity_lock import get_all_locked_identities
 from core.executor import run_execution, resolve_flow_credentials
 from core.queue import ExecutionQueueItem, ExecutionStatus
+from core.user_input import submit_user_input
 from datetime import datetime
 from routers.execution import build_flow_snapshot
 from routers.auth import get_current_user
@@ -340,6 +341,29 @@ async def websocket_flow_endpoint(
                                 "data": {"timestamp": data.get("timestamp")},
                             },
                         )
+                    elif data.get("type") == "waitForUserResponse":
+                        execution_id = str(data.get("executionId") or "").strip()
+                        node_id = str(data.get("nodeId") or "").strip()
+                        payload = data.get("payload")
+
+                        if not execution_id or not node_id:
+                            await ws_manager.send(
+                                client_id,
+                                {
+                                    "type": "error",
+                                    "message": "Missing executionId or nodeId for waitForUserResponse",
+                                },
+                            )
+                            continue
+
+                        if not submit_user_input(execution_id, node_id, payload):
+                            await ws_manager.send(
+                                client_id,
+                                {
+                                    "type": "error",
+                                    "message": "No pending waitForUser request found",
+                                },
+                            )
             except json.JSONDecodeError:
                 await ws_manager.send(
                     client_id,

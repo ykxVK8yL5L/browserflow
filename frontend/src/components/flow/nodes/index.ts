@@ -31,6 +31,7 @@ import CheckNode from "./CheckNode";
 import UncheckNode from "./UncheckNode";
 import SelectOptionNode from "./SelectOptionNode";
 import WaitNode from "./WaitNode";
+import WaitForUserNode from "./WaitForUserNode";
 import WaitForNode from "./WaitForNode";
 import WaitForUrlNode from "./WaitForUrlNode";
 import WaitForLoadStateNode from "./WaitForLoadStateNode";
@@ -115,6 +116,7 @@ export const nodeRegistry: NodeTypeConfig[] = [
   PressNode,
   SelectOptionNode,
   WaitNode,
+  WaitForUserNode,
   WaitForNode,
   WaitForUrlNode,
   WaitForLoadStateNode,
