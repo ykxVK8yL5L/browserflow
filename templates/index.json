@@ -73,7 +73,7 @@
       "category": "register",
       "name": "设置注册信息",
       "description": "设置注册信息模板:随机生成用户名、密码、姓名、年龄",
-      "tags": ["注册", "片段","随机",],
+      "tags": ["注册", "片段","随机"],
       "author": "官方",
       "sort_order": 10,
       "path": "register/设置注册信息.json"
