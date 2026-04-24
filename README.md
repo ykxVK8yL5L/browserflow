@@ -217,6 +217,12 @@ docker run --name browserflow -d -p 8000:8000 -v $(pwd):/app/backend/data ghcr.i
 - 通用形式：`${namespace.function(arg1, arg2, ...)}`
 - 可选保存变量：在表达式末尾加 `:varName`，例如 `${random.alnum(12, 5):accounts}`
 
+补充说明：
+
+- 模板函数参数现在支持直接写变量名、`vars.xxx`、`nodeId.result` 这类引用
+- 例如：`${time.format(nowtime, "%H%M%S")}`、`${time.format(vars.nowtime, "%H%M%S")}`、`${time.format(timeNode.result, "%H%M%S")}`
+- 如果参数本身是普通文本，请继续使用引号包裹，例如 `${json.get(profile, "name", "")}`
+
 目前内置以下命名空间（后续会持续扩展）：
 
 - `random.*`：随机值生成

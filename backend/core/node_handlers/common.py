@@ -66,7 +66,9 @@ def _resolve_template_function_call(reference: str, outputs: Dict[str, Any]) -> 
         return None
 
     namespace, name, args_text, variable_name = match.groups()
-    args = [_parse_template_arg(item) for item in _split_function_args(args_text)]
+    args = [
+        _parse_template_arg(item, outputs) for item in _split_function_args(args_text)
+    ]
 
     registry = ensure_template_functions_loaded()
     value = registry.call(namespace, name, args, outputs=outputs)
@@ -290,7 +292,7 @@ def _split_function_args(args_text: str) -> list[str]:
     return args
 
 
-def _parse_template_arg(raw_arg: str) -> Any:
+def _parse_template_arg(raw_arg: str, outputs: Optional[Dict[str, Any]] = None) -> Any:
     text = raw_arg.strip()
     if not text:
         return ""
@@ -299,7 +301,14 @@ def _parse_template_arg(raw_arg: str) -> Any:
     try:
         return ast.literal_eval(text)
     except Exception:
-        return text
+        pass
+
+    if outputs is not None:
+        resolved = resolve_store_reference(text, outputs)
+        if resolved is not None:
+            return resolved
+
+    return text
 
 
 def _resolve_random_expression(reference: str, outputs: Dict[str, Any]) -> Any:
@@ -308,7 +317,9 @@ def _resolve_random_expression(reference: str, outputs: Dict[str, Any]) -> Any:
         return None
 
     kind, args_text, variable_name = match.groups()
-    args = [_parse_template_arg(item) for item in _split_function_args(args_text)]
+    args = [
+        _parse_template_arg(item, outputs) for item in _split_function_args(args_text)
+    ]
 
     if kind == "uuid":
         if len(args) > 1:
