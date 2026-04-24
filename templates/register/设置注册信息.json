@@ -1,0 +1,294 @@
+{
+  "name": "设置注册信息",
+  "description": "设置注册信息",
+  "nodes": [
+    {
+      "id": "node_1777024885389",
+      "type": "transform",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "设置当前时间戳",
+        "nodeType": "transform",
+        "params": {
+          "fn": "time.epoch_ms",
+          "args": [],
+          "variableName": "nowtime"
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "outputType": "object",
+        "fn": "time.epoch_ms",
+        "args": [],
+        "variableName": "nowtime",
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 0
+      },
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": "node_1777024885390",
+      "type": "faker",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "设置随机英文姓名",
+        "nodeType": "faker",
+        "params": {
+          "preset": "name",
+          "methodName": "name",
+          "locale": "",
+          "count": 1,
+          "unique": "false",
+          "seed": "",
+          "kwargs": "",
+          "variableName": "fullname"
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "outputType": "object",
+        "preset": "name",
+        "methodName": "name",
+        "locale": "",
+        "count": 1,
+        "unique": "false",
+        "seed": "",
+        "kwargs": "",
+        "variableName": "fullname",
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 0
+      },
+      "position": {
+        "x": 0,
+        "y": 480
+      }
+    },
+    {
+      "id": "node_1777024885391",
+      "type": "random",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "设置年龄随机20-40之间",
+        "nodeType": "random",
+        "params": {
+          "kind": "numeric",
+          "length": 2,
+          "count": 1,
+          "min": 20,
+          "max": 40,
+          "specialChars": "!@#$%^&*",
+          "variableName": "age"
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "outputType": "object",
+        "kind": "numeric",
+        "length": 2,
+        "count": 1,
+        "min": 20,
+        "max": 40,
+        "specialChars": "!@#$%^&*",
+        "variableName": "age",
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 0
+      },
+      "position": {
+        "x": 0,
+        "y": 640
+      }
+    },
+    {
+      "id": "node_1777024885392",
+      "type": "random",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "随机用户名",
+        "nodeType": "random",
+        "params": {
+          "kind": "alnum",
+          "length": 12,
+          "count": 1,
+          "min": 0,
+          "max": 100,
+          "specialChars": "!@#$%^&*",
+          "variableName": "username"
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "outputType": "object",
+        "kind": "alnum",
+        "length": 12,
+        "count": 1,
+        "min": 0,
+        "max": 100,
+        "specialChars": "!@#$%^&*",
+        "variableName": "username",
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 0
+      },
+      "position": {
+        "x": 0,
+        "y": 160
+      }
+    },
+    {
+      "id": "node_1777024885393",
+      "type": "set",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "Set",
+        "nodeType": "set",
+        "params": {
+          "variableName": "account",
+          "operation": "set",
+          "valueType": "object",
+          "value": "{\"username\":\"${username}\",\"password\":\"${password}\",\"fullname\":\"${fullname}\",\"age\":${age}}"
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "outputType": "object",
+        "variableName": "account",
+        "operation": "set",
+        "valueType": "object",
+        "value": "{\"username\":\"${username}\",\"password\":\"${password}\",\"fullname\":\"${fullname}\",\"age\":${age}}",
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 0
+      },
+      "position": {
+        "x": 0,
+        "y": 800
+      }
+    },
+    {
+      "id": "node_1777024885394",
+      "type": "random",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "生成密码",
+        "nodeType": "random",
+        "params": {
+          "kind": "ms_password",
+          "length": 12,
+          "count": 1,
+          "min": 0,
+          "max": 100,
+          "specialChars": "!@#$%^&*",
+          "variableName": "password"
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "outputType": "object",
+        "kind": "ms_password",
+        "length": 12,
+        "count": 1,
+        "min": 0,
+        "max": 100,
+        "specialChars": "!@#$%^&*",
+        "variableName": "password",
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 0
+      },
+      "position": {
+        "x": 0,
+        "y": 320
+      }
+    },
+    {
+      "id": "node_1777024885395",
+      "type": "stop",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "Stop",
+        "nodeType": "stop",
+        "params": {
+          "stopType": "success",
+          "errorMessage": "${account}"
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "stopType": "success",
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 0,
+        "errorMessage": "${account}"
+      },
+      "position": {
+        "x": 0,
+        "y": 960
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "xy-edge__node_1777024885390-node_1777024885391",
+      "source": "node_1777024885390",
+      "target": "node_1777024885391",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1777024885389-node_1777024885392",
+      "source": "node_1777024885389",
+      "target": "node_1777024885392",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1777024885391-node_1777024885393",
+      "source": "node_1777024885391",
+      "target": "node_1777024885393",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1777024885392-node_1777024885394",
+      "source": "node_1777024885392",
+      "target": "node_1777024885394",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1777024885394-node_1777024885390",
+      "source": "node_1777024885394",
+      "target": "node_1777024885390",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1777024885393-node_1777024885395",
+      "source": "node_1777024885393",
+      "target": "node_1777024885395",
+      "sourceHandle": null,
+      "targetHandle": null
+    }
+  ],
+  "exportedAt": "2026-04-24T10:14:17.647Z"
+}
