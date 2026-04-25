@@ -1,5 +1,7 @@
 import { Handle, Position } from "@xyflow/react";
 
+export const GROUP_TARGET_HANDLE_ID = "__group_target__";
+
 type ProxyHandleId = string | undefined;
 
 export interface GroupProxyConfig {
@@ -11,7 +13,7 @@ export interface GroupProxyConfig {
 
 const getSourceHandleClassName = (handleId: ProxyHandleId, leftPercent?: number) => {
     const base = [
-        "!absolute !-bottom-2 !h-4 !w-4 !-translate-x-1/2 !rounded-full !border-2 !border-background !pointer-events-auto nodrag nopan",
+        "!absolute !bottom-0 !h-4 !w-4 !-translate-x-1/2 !translate-y-full !rounded-full !border-2 !border-transparent !pointer-events-auto nodrag nopan",
     ];
 
     if (handleId === "true") {
@@ -21,7 +23,7 @@ const getSourceHandleClassName = (handleId: ProxyHandleId, leftPercent?: number)
     } else if (handleId === "done") {
         base.push("!bg-emerald-600");
     } else {
-        base.push("!bg-blue-600");
+        base.push("!bg-primary");
     }
 
     return base.join(" ");
@@ -68,9 +70,10 @@ const GroupProxyHandles = ({ proxy }: { proxy: GroupProxyConfig }) => {
         >
             {proxy.showTarget ? (
                 <Handle
+                    id={GROUP_TARGET_HANDLE_ID}
                     type="target"
                     position={Position.Top}
-                    className="!left-1/2 !top-0 !h-4 !w-4 !-translate-x-1/2 !-translate-y-1/2 !rounded-full !border-2 !border-background !bg-blue-600 !pointer-events-auto nodrag nopan"
+                    className="!left-1/2 !top-0 !h-4 !w-4 !-translate-x-1/2 !-translate-y-full !rounded-full !border-2 !border-transparent !bg-primary !pointer-events-auto nodrag nopan"
                     isConnectable
                 />
             ) : null}

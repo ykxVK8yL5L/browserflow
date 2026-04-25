@@ -4,6 +4,7 @@ export interface FlowGroup {
   description?: string;
   color?: string;
   collapsed?: boolean;
+  parentGroupId?: string;
   entryNodeId?: string;
   exitNodeId?: string;
   nodeIds: string[];
@@ -16,7 +17,8 @@ export interface GroupBounds {
   height: number;
 }
 
-const GROUP_PADDING_X = 24;
+const GROUP_PADDING_LEFT = 40;
+const GROUP_PADDING_RIGHT = 24;
 const GROUP_PADDING_TOP = 64;
 const GROUP_PADDING_BOTTOM = 18;
 
@@ -38,6 +40,7 @@ export function getNextGroupId(): string {
 export function createGroup(input: {
   title: string;
   nodeIds: string[];
+  parentGroupId?: string;
   description?: string;
   color?: string;
 }): FlowGroup {
@@ -47,37 +50,163 @@ export function createGroup(input: {
     description: input.description,
     color: input.color || GROUP_COLORS[Math.floor(Math.random() * GROUP_COLORS.length)],
     collapsed: false,
+    parentGroupId: input.parentGroupId,
     nodeIds: [...new Set(input.nodeIds)],
   };
 }
 
+export function getChildGroups(groups: FlowGroup[] | undefined, parentGroupId?: string): FlowGroup[] {
+  return (groups || []).filter((group) => (group.parentGroupId || undefined) === (parentGroupId || undefined));
+}
+
+export function getGroupDepth(groupId: string, groups: FlowGroup[] | undefined): number {
+  const groupMap = new Map((groups || []).map((group) => [group.id, group]));
+  let depth = 0;
+  let cursor = groupMap.get(groupId)?.parentGroupId;
+  const visited = new Set<string>();
+
+  while (cursor && !visited.has(cursor)) {
+    visited.add(cursor);
+    depth += 1;
+    cursor = groupMap.get(cursor)?.parentGroupId;
+  }
+
+  return depth;
+}
+
+export function getGroupAncestorIds(groupId: string, groups: FlowGroup[] | undefined): string[] {
+  const groupMap = new Map((groups || []).map((group) => [group.id, group]));
+  const ancestors: string[] = [];
+  let cursor = groupMap.get(groupId)?.parentGroupId;
+  const visited = new Set<string>();
+
+  while (cursor && !visited.has(cursor)) {
+    ancestors.push(cursor);
+    visited.add(cursor);
+    cursor = groupMap.get(cursor)?.parentGroupId;
+  }
+
+  return ancestors;
+}
+
+export function getGroupDescendantGroupIds(groupId: string, groups: FlowGroup[] | undefined): string[] {
+  const result: string[] = [];
+  const queue = [groupId];
+
+  while (queue.length > 0) {
+    const currentId = queue.shift();
+    if (!currentId) continue;
+    const children = getChildGroups(groups, currentId);
+    children.forEach((child) => {
+      result.push(child.id);
+      queue.push(child.id);
+    });
+  }
+
+  return result;
+}
+
+export function getGroupNodeIdsDeep(groupId: string, groups: FlowGroup[] | undefined): string[] {
+  const groupMap = new Map((groups || []).map((group) => [group.id, group]));
+  const root = groupMap.get(groupId);
+  if (!root) return [];
+
+  const nodeIds = new Set<string>(root.nodeIds || []);
+  const queue = [groupId];
+
+  while (queue.length > 0) {
+    const currentId = queue.shift();
+    if (!currentId) continue;
+    getChildGroups(groups, currentId).forEach((child) => {
+      child.nodeIds.forEach((nodeId) => nodeIds.add(nodeId));
+      queue.push(child.id);
+    });
+  }
+
+  return [...nodeIds];
+}
+
 export function sanitizeGroups(groups: FlowGroup[] | undefined, validNodeIds: Set<string>): FlowGroup[] {
-  return (groups || [])
-    .map((group) => ({
-      ...group,
-      nodeIds: (group.nodeIds || []).filter((nodeId) => validNodeIds.has(nodeId)),
-      entryNodeId: validNodeIds.has(group.entryNodeId || "") ? group.entryNodeId : undefined,
-      exitNodeId: validNodeIds.has(group.exitNodeId || "") ? group.exitNodeId : undefined,
-    }))
-    .filter((group) => group.nodeIds.length > 0);
+  const normalized = (groups || []).map((group) => ({
+    ...group,
+    nodeIds: [...new Set((group.nodeIds || []).filter((nodeId) => validNodeIds.has(nodeId)))],
+    parentGroupId: group.parentGroupId || undefined,
+    entryNodeId: validNodeIds.has(group.entryNodeId || "") ? group.entryNodeId : undefined,
+    exitNodeId: validNodeIds.has(group.exitNodeId || "") ? group.exitNodeId : undefined,
+  }));
+
+  const validGroupIds = new Set(normalized.map((group) => group.id));
+  const groupMap = new Map(normalized.map((group) => [group.id, group]));
+
+  normalized.forEach((group) => {
+    if (!group.parentGroupId || !validGroupIds.has(group.parentGroupId) || group.parentGroupId === group.id) {
+      group.parentGroupId = undefined;
+      return;
+    }
+
+    const visited = new Set<string>([group.id]);
+    let cursor = group.parentGroupId;
+    while (cursor) {
+      if (visited.has(cursor)) {
+        group.parentGroupId = undefined;
+        break;
+      }
+      visited.add(cursor);
+      cursor = groupMap.get(cursor)?.parentGroupId;
+    }
+  });
+
+  let filtered = normalized;
+  let changed = true;
+  while (changed) {
+    changed = false;
+    const filteredIds = new Set(filtered.map((group) => group.id));
+    const childCount = new Map<string, number>();
+
+    filtered.forEach((group) => {
+      if (group.parentGroupId && filteredIds.has(group.parentGroupId)) {
+        childCount.set(group.parentGroupId, (childCount.get(group.parentGroupId) || 0) + 1);
+      }
+    });
+
+    const next = filtered.filter((group) => group.nodeIds.length > 0 || (childCount.get(group.id) || 0) > 0);
+    if (next.length !== filtered.length) {
+      changed = true;
+      filtered = next.map((group) => ({
+        ...group,
+        parentGroupId: group.parentGroupId && next.some((candidate) => candidate.id === group.parentGroupId)
+          ? group.parentGroupId
+          : undefined,
+      }));
+    }
+  }
+
+  return filtered;
 }
 
 export function remapImportedGroups(
   groups: FlowGroup[] | undefined,
   idMap: Map<string, string>,
 ): FlowGroup[] {
-  return (groups || [])
-    .map((group) => ({
+  const groupIdMap = new Map<string, string>();
+  (groups || []).forEach((group) => {
+    groupIdMap.set(group.id, getNextGroupId());
+  });
+
+  return sanitizeGroups(
+    (groups || []).map((group) => ({
       ...group,
       collapsed: Boolean(group.collapsed),
-      id: getNextGroupId(),
+      id: groupIdMap.get(group.id) || getNextGroupId(),
+      parentGroupId: group.parentGroupId ? groupIdMap.get(group.parentGroupId) : undefined,
       entryNodeId: group.entryNodeId ? idMap.get(group.entryNodeId) : undefined,
       exitNodeId: group.exitNodeId ? idMap.get(group.exitNodeId) : undefined,
       nodeIds: (group.nodeIds || [])
         .map((nodeId) => idMap.get(nodeId))
         .filter((nodeId): nodeId is string => Boolean(nodeId)),
-    }))
-    .filter((group) => group.nodeIds.length > 0);
+    })),
+    new Set((groups || []).flatMap((group) => (group.nodeIds || []).map((nodeId) => idMap.get(nodeId)).filter(Boolean) as string[])),
+  );
 }
 
 export function removeNodeIdsFromGroups(groups: FlowGroup[], nodeIds: string[]): FlowGroup[] {
@@ -95,20 +224,42 @@ export function removeNodeIdsFromGroups(groups: FlowGroup[], nodeIds: string[]):
 export function computeGroupBounds(
   group: FlowGroup,
   nodes: Array<{ id: string; position: { x: number; y: number }; measured?: { width?: number; height?: number } }>,
+  groups?: FlowGroup[],
 ): GroupBounds | null {
-  const memberNodes = nodes.filter((node) => group.nodeIds.includes(node.id));
-  if (memberNodes.length === 0) {
+  const memberBounds: GroupBounds[] = [];
+  const nodeIds = new Set(groups ? group.nodeIds : group.nodeIds);
+  const memberNodes = nodes.filter((node) => nodeIds.has(node.id));
+
+  memberNodes.forEach((node) => {
+    const width = Number(node.measured?.width) || 220;
+    const height = Number(node.measured?.height) || 90;
+    memberBounds.push({
+      x: node.position.x,
+      y: node.position.y,
+      width,
+      height,
+    });
+  });
+
+  if (groups) {
+    getChildGroups(groups, group.id).forEach((childGroup) => {
+      const childBounds = computeGroupBounds(childGroup, nodes, groups);
+      if (childBounds) {
+        memberBounds.push(childBounds);
+      }
+    });
+  }
+
+  if (memberBounds.length === 0) {
     return null;
   }
 
-  const bounds = memberNodes.reduce(
-    (acc, node) => {
-      const width = Number(node.measured?.width) || 220;
-      const height = Number(node.measured?.height) || 90;
-      acc.minX = Math.min(acc.minX, node.position.x);
-      acc.minY = Math.min(acc.minY, node.position.y);
-      acc.maxX = Math.max(acc.maxX, node.position.x + width);
-      acc.maxY = Math.max(acc.maxY, node.position.y + height);
+  const bounds = memberBounds.reduce(
+    (acc, item) => {
+      acc.minX = Math.min(acc.minX, item.x);
+      acc.minY = Math.min(acc.minY, item.y);
+      acc.maxX = Math.max(acc.maxX, item.x + item.width);
+      acc.maxY = Math.max(acc.maxY, item.y + item.height);
       return acc;
     },
     {
@@ -120,9 +271,9 @@ export function computeGroupBounds(
   );
 
   return {
-    x: bounds.minX - GROUP_PADDING_X,
+    x: bounds.minX - GROUP_PADDING_LEFT,
     y: bounds.minY - GROUP_PADDING_TOP,
-    width: bounds.maxX - bounds.minX + GROUP_PADDING_X * 2,
+    width: bounds.maxX - bounds.minX + GROUP_PADDING_LEFT + GROUP_PADDING_RIGHT,
     height: bounds.maxY - bounds.minY + GROUP_PADDING_TOP + GROUP_PADDING_BOTTOM,
   };
 }
