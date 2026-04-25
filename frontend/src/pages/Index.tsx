@@ -82,6 +82,8 @@ import {
 import type { RunSettings } from "@/lib/flowApi";
 import { getTemplateIndex, getTemplateItem, type TemplateIndexItem } from "@/lib/templateApi";
 import type { WaitForUserRequest } from "@/lib/websocketEngine";
+import type { FlowGroup } from "@/lib/flowGroups";
+import { createGroup, remapImportedGroups } from "@/lib/flowGroups";
 
 const initialExecState: FlowExecutionState = {
   status: "idle",
@@ -199,8 +201,11 @@ const mergeRunSettings = (settings?: RunSettings | null): Required<RunSettings> 
 const appendImportedFlow = (
   currentNodes: Node[],
   currentEdges: Edge[],
+  currentGroups: FlowGroup[],
   importedNodes: Node[],
   importedEdges: Edge[],
+  importedGroups: FlowGroup[] = [],
+  importedGroupTitle?: string,
 ) => {
   const existingIds = new Set(currentNodes.map((node) => node.id));
   const idMap = new Map<string, string>();
@@ -255,9 +260,21 @@ const appendImportedFlow = (
     selected: false,
   }));
 
+  const appendedGroups = importedGroups.length
+    ? remapImportedGroups(importedGroups, idMap)
+    : importedGroupTitle && appendedNodes.length > 0
+      ? [
+        createGroup({
+          title: importedGroupTitle,
+          nodeIds: appendedNodes.map((node) => node.id),
+        }),
+      ]
+      : [];
+
   return {
     nodes: [...currentNodes, ...appendedNodes],
     edges: [...currentEdges, ...appendedEdges],
+    groups: [...currentGroups, ...appendedGroups],
   };
 };
 
@@ -266,7 +283,7 @@ const Index = () => {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const addNodeFnRef = useRef<((nodeType: string) => void) | null>(null);
-  const resetFnRef = useRef<((nodes: Node[], edges: Edge[]) => void) | null>(
+  const resetFnRef = useRef<((nodes: Node[], edges: Edge[], groups: FlowGroup[]) => void) | null>(
     null,
   );
   const [execState, setExecState] =
@@ -280,6 +297,7 @@ const Index = () => {
   const [historySnapshot, setHistorySnapshot] = useState<{
     nodes: Node[];
     edges: Edge[];
+    groups: FlowGroup[];
   } | null>(null);
   const [historyNodeResults, setHistoryNodeResults] = useState<ExecutionRecord["nodeResults"]>({});
   const [historyViewingExecution, setHistoryViewingExecution] = useState<ExecutionRecord | null>(null);
@@ -300,8 +318,10 @@ const Index = () => {
   const abortRef = useRef<AbortController | null>(null);
   const nodesRef = useRef<Node[]>([]);
   const edgesRef = useRef<Edge[]>([]);
+  const groupsRef = useRef<FlowGroup[]>([]);
   const savedNodesRef = useRef<Node[]>([]);
   const savedEdgesRef = useRef<Edge[]>([]);
+  const savedGroupsRef = useRef<FlowGroup[]>([]);
   const savedRunSettingsRef = useRef<Required<RunSettings>>(DEFAULT_RUN_SETTINGS);
   const isMobile = useIsMobile();
   const setNodeExecStatusRef = useRef<
@@ -370,9 +390,11 @@ const Index = () => {
     const mergedRunSettings = mergeRunSettings(flow.run_settings);
     savedNodesRef.current = cleanNodes;
     savedEdgesRef.current = flow.edges;
+    savedGroupsRef.current = flow.groups || [];
     savedRunSettingsRef.current = mergedRunSettings;
     nodesRef.current = cleanNodes;
     edgesRef.current = flow.edges;
+    groupsRef.current = flow.groups || [];
     setRunSettings(mergedRunSettings);
     setHasUnsaved(false);
   }, [flow]);
@@ -392,9 +414,10 @@ const Index = () => {
     addNodeFnRef.current?.(nodeType);
   };
 
-  const handleFlowChange = useCallback((nodes: Node[], edges: Edge[]) => {
+  const handleFlowChange = useCallback((nodes: Node[], edges: Edge[], groups: FlowGroup[]) => {
     nodesRef.current = nodes;
     edgesRef.current = edges;
+    groupsRef.current = groups;
     setHasUnsaved(true);
   }, []);
 
@@ -405,11 +428,13 @@ const Index = () => {
         const updatedFlow = await updateFlowAsync(flowId, {
           nodes: cleanNodes,
           edges: edgesRef.current,
+          groups: groupsRef.current,
           run_settings: runSettings,
         });
         setFlow(updatedFlow);
         savedNodesRef.current = cleanNodes;
         savedEdgesRef.current = edgesRef.current;
+        savedGroupsRef.current = groupsRef.current;
         savedRunSettingsRef.current = runSettings;
         setHasUnsaved(false);
         toast.success("Flow saved");
@@ -421,9 +446,10 @@ const Index = () => {
   }, [flowId, runSettings]);
 
   const handleReset = useCallback(() => {
-    resetFnRef.current?.(savedNodesRef.current, savedEdgesRef.current);
+    resetFnRef.current?.(savedNodesRef.current, savedEdgesRef.current, savedGroupsRef.current);
     nodesRef.current = savedNodesRef.current;
     edgesRef.current = savedEdgesRef.current;
+    groupsRef.current = savedGroupsRef.current;
     setRunSettings(savedRunSettingsRef.current);
     setHasUnsaved(false);
   }, []);
@@ -434,6 +460,7 @@ const Index = () => {
       description: flow?.description || "",
       nodes: stripExecData(nodesRef.current),
       edges: edgesRef.current,
+      groups: groupsRef.current,
       exportedAt: new Date().toISOString(),
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], {
@@ -467,12 +494,16 @@ const Index = () => {
           const merged = appendImportedFlow(
             nodesRef.current,
             edgesRef.current,
+            groupsRef.current,
             cleanNodes,
             data.edges || [],
+            data.groups || [],
+            data.groups?.length ? undefined : data.name || "导入片段",
           );
-          resetFnRef.current?.(merged.nodes, merged.edges);
+          resetFnRef.current?.(merged.nodes, merged.edges, merged.groups);
           nodesRef.current = merged.nodes;
           edgesRef.current = merged.edges;
+          groupsRef.current = merged.groups;
           setHasUnsaved(true);
           toast.success(
             `Imported "${data.name || "flow"}" (${cleanNodes.length} nodes)`,
@@ -525,12 +556,16 @@ const Index = () => {
       const merged = appendImportedFlow(
         nodesRef.current,
         edgesRef.current,
+        groupsRef.current,
         cleanNodes,
         cleanEdges,
+        (template.groups || []) as FlowGroup[],
+        template.name,
       );
-      resetFnRef.current?.(merged.nodes, merged.edges);
+      resetFnRef.current?.(merged.nodes, merged.edges, merged.groups);
       nodesRef.current = merged.nodes;
       edgesRef.current = merged.edges;
+      groupsRef.current = merged.groups;
       setHasUnsaved(true);
       setTemplateDialogOpen(false);
       toast.success(`已导入模板“${template.name}”`);
@@ -882,6 +917,7 @@ const Index = () => {
   }
 
   const displayEdges = historySnapshot?.edges ?? flow.edges;
+  const displayGroups = historySnapshot?.groups ?? flow.groups ?? [];
   const hasExecutionData =
     canvasHasResults ||
     execState.status !== "idle" ||
@@ -1471,6 +1507,7 @@ const Index = () => {
           <FlowCanvas
             initialNodes={displayNodes}
             initialEdges={displayEdges}
+            initialGroups={displayGroups}
             isRunning={isRunning}
             readOnly={Boolean(historySnapshot)}
             allowNodeEditingInReadOnly={Boolean(historySnapshot)}
@@ -1514,6 +1551,7 @@ const Index = () => {
               setHistorySnapshot({
                 nodes: stripExecData(snapshot.nodes as Node[]),
                 edges: snapshot.edges as Edge[],
+                groups: (snapshot.groups || []) as FlowGroup[],
               });
             } else {
               setHistorySnapshot(null);

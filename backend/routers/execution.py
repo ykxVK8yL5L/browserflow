@@ -206,6 +206,10 @@ def build_flow_snapshot(flow_data: Optional[dict]) -> Optional[dict]:
 
     flow_snapshot = {"nodes": nodes, "edges": edges}
 
+    groups = flow_data.get("groups")
+    if isinstance(groups, list):
+        flow_snapshot["groups"] = groups
+
     options = flow_data.get("options")
     if isinstance(options, dict):
         flow_snapshot["options"] = options

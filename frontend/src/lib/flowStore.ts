@@ -11,6 +11,7 @@ import {
   type RunSettings,
 } from "./flowApi";
 import type { FlowNotificationRule } from "./notificationApi";
+import type { FlowGroup } from "./flowGroups";
 
 // ─── Types ──────────────────────────────────────────────
 
@@ -20,6 +21,7 @@ export interface Flow {
   description: string;
   nodes: Node[];
   edges: Edge[];
+  groups: FlowGroup[];
   run_settings?: RunSettings;
   createdAt: string;
   updatedAt: string;
@@ -61,6 +63,7 @@ function apiToLocalFlow(apiFlow: ApiFlow): Flow {
     description: apiFlow.description || "",
     nodes: apiFlow.flow_data?.nodes || [],
     edges: apiFlow.flow_data?.edges || [],
+    groups: apiFlow.flow_data?.groups || [],
     run_settings: apiFlow.run_settings,
     createdAt: apiFlow.created_at,
     updatedAt: apiFlow.updated_at,
@@ -73,7 +76,7 @@ function apiToLocalFlow(apiFlow: ApiFlow): Flow {
 function localToApiInput(flow: Partial<Flow>): {
   name?: string;
   description?: string;
-  flow_data?: { nodes: Node[]; edges: Edge[] };
+  flow_data?: { nodes: Node[]; edges: Edge[]; groups?: FlowGroup[] };
   run_settings?: RunSettings;
   identity_id?: string;
   notification_enabled?: boolean;
@@ -82,7 +85,7 @@ function localToApiInput(flow: Partial<Flow>): {
   const result: {
     name?: string;
     description?: string;
-    flow_data?: { nodes: Node[]; edges: Edge[] };
+    flow_data?: { nodes: Node[]; edges: Edge[]; groups?: FlowGroup[] };
     run_settings?: RunSettings;
     identity_id?: string;
     notification_enabled?: boolean;
@@ -95,10 +98,11 @@ function localToApiInput(flow: Partial<Flow>): {
   if (flow.description !== undefined) {
     result.description = flow.description;
   }
-  if (flow.nodes !== undefined || flow.edges !== undefined) {
+  if (flow.nodes !== undefined || flow.edges !== undefined || flow.groups !== undefined) {
     result.flow_data = {
       nodes: flow.nodes || [],
       edges: flow.edges || [],
+      groups: flow.groups || [],
     };
   }
   if (flow.run_settings !== undefined) {
@@ -184,7 +188,7 @@ export async function createFlowAsync(
   const apiFlow = await apiCreateFlow({
     name,
     description,
-    flow_data: { nodes: [], edges: [] },
+    flow_data: { nodes: [], edges: [], groups: [] },
     identity_id: identityId,
     notification_enabled: notificationEnabled,
     notification_rules: notificationRules,
@@ -204,7 +208,7 @@ export async function createFlowAsync(
  */
 export async function updateFlowAsync(
   id: string,
-  updates: Partial<Pick<Flow, "name" | "description" | "nodes" | "edges" | "run_settings" | "identityId" | "notificationEnabled" | "notificationRules">>
+  updates: Partial<Pick<Flow, "name" | "description" | "nodes" | "edges" | "groups" | "run_settings" | "identityId" | "notificationEnabled" | "notificationRules">>
 ): Promise<Flow> {
   const apiInput = localToApiInput(updates);
   const apiFlow = await apiUpdateFlow(id, apiInput);
@@ -269,6 +273,7 @@ export function createFlow(name: string, description: string): Flow {
     description,
     nodes: [],
     edges: [],
+    groups: [],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -286,7 +291,7 @@ export function createFlow(name: string, description: string): Flow {
  */
 export function updateFlow(
   id: string,
-  updates: Partial<Pick<Flow, "name" | "description" | "nodes" | "edges">>
+  updates: Partial<Pick<Flow, "name" | "description" | "nodes" | "edges" | "groups">>
 ): void {
   const flows = getLocalFlows();
   const idx = flows.findIndex((f) => f.id === id);

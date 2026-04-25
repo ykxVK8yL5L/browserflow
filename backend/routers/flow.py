@@ -48,6 +48,7 @@ class FlowData(BaseModel):
 
     nodes: List[FlowNode] = []
     edges: List[FlowEdge] = []
+    groups: List[dict] = []
 
 
 class FlowCreate(BaseModel):

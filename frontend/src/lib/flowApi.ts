@@ -7,6 +7,7 @@
 import { type Node, type Edge } from "@xyflow/react";
 import { API_BASE, apiCall, getSession } from "./apiUtils";
 import type { FlowNotificationRule } from "./notificationApi";
+import type { FlowGroup } from "./flowGroups";
 
 // ─── Types ──────────────────────────────────────────────
 
@@ -29,6 +30,7 @@ export interface Flow {
   flow_data: {
     nodes: Node[];
     edges: Edge[];
+    groups?: FlowGroup[];
   };
   run_settings?: RunSettings;
   tags: string[];
@@ -55,6 +57,7 @@ export interface FlowCreateInput {
   flow_data: {
     nodes: Node[];
     edges: Edge[];
+    groups?: FlowGroup[];
   };
   run_settings?: RunSettings;
   tags?: string[];
@@ -70,6 +73,7 @@ export interface FlowUpdateInput {
   flow_data?: {
     nodes: Node[];
     edges: Edge[];
+    groups?: FlowGroup[];
   };
   run_settings?: RunSettings;
   tags?: string[];
@@ -155,11 +159,13 @@ export async function saveFlowData(
     description?: string;
     nodes: Node[];
     edges: Edge[];
+    groups?: FlowGroup[];
   }
 ): Promise<Flow> {
   const flowData = {
     nodes: data.nodes,
     edges: data.edges,
+    groups: data.groups || [],
   };
 
   if (id) {

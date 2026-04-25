@@ -38,6 +38,7 @@ export interface TemplateFlow {
   author: string;
   nodes: Record<string, unknown>[];
   edges: Record<string, unknown>[];
+  groups?: Record<string, unknown>[];
 }
 
 export async function getTemplateSettings(): Promise<TemplateSettings> {
