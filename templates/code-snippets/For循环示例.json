@@ -9,7 +9,7 @@
       "data": {
         "captureScreenshot": false,
         "screenshotTiming": "after",
-        "label": "For",
+        "label": "从0到10循环",
         "nodeType": "for",
         "params": {
           "variableName": "i",
@@ -27,20 +27,19 @@
         "step": 1,
         "inclusive": "false",
         "maxIterations": 1000,
-        "description": "",
+        "description": "循环10次",
         "disabled": false,
         "waitBeforeMs": 0,
         "waitAfterMs": 0
       },
       "position": {
-        "x": 832.9773346974804,
-        "y": 242.25652781404
+        "x": 107,
+        "y": 177
       },
       "measured": {
-        "width": 260,
-        "height": 108
-      },
-      "selected": false
+        "width": 200,
+        "height": 77
+      }
     },
     {
       "id": "node_1777186789695",
@@ -49,14 +48,14 @@
       "data": {
         "captureScreenshot": false,
         "screenshotTiming": "after",
-        "label": "If Condition",
+        "label": "判断是否满足退出条件",
         "nodeType": "if",
         "params": {
           "leftValue": "${i}",
           "leftValueType": "number",
           "operator": ">=",
           "value": "6",
-          "valueType": "auto",
+          "valueType": "number",
           "condition": "",
           "onError": "fail"
         },
@@ -66,69 +65,48 @@
         "leftValueType": "number",
         "operator": ">=",
         "value": "6",
-        "valueType": "auto",
+        "valueType": "number",
         "condition": "",
         "onError": "fail",
-        "description": "",
+        "description": "判断是否满足退出条件:当大于等于6时退出循环",
         "disabled": false,
         "waitBeforeMs": 0,
         "waitAfterMs": 0
       },
       "position": {
-        "x": 783.7038749555701,
-        "y": 420.74680433148137
+        "x": -160.5,
+        "y": 354
       },
       "measured": {
-        "width": 213,
-        "height": 116
-      },
-      "selected": false
+        "width": 195,
+        "height": 69
+      }
     },
     {
       "id": "node_1777186789697",
       "type": "break",
       "nodeType": null,
       "data": {
-        "label": "Break",
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "退出不再执行后面的循环",
         "nodeType": "break",
-        "captureScreenshot": false,
-        "screenshotTiming": "after",
         "params": {},
         "inputs": {},
-        "stopOnFailure": true
+        "stopOnFailure": true,
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 0
       },
       "position": {
-        "x": 488.3593261361634,
-        "y": 671.4898040847978
+        "x": -244,
+        "y": 527.5
       },
       "measured": {
-        "width": 168,
-        "height": 94
-      },
-      "selected": false
-    },
-    {
-      "id": "node_1777186789698",
-      "type": "continue",
-      "nodeType": null,
-      "data": {
-        "label": "Continue",
-        "nodeType": "continue",
-        "captureScreenshot": false,
-        "screenshotTiming": "after",
-        "params": {},
-        "inputs": {},
-        "stopOnFailure": true
-      },
-      "position": {
-        "x": 860.726586077368,
-        "y": 790.5360436088388
-      },
-      "measured": {
-        "width": 204,
-        "height": 94
-      },
-      "selected": false
+        "width": 182,
+        "height": 68
+      }
     },
     {
       "id": "node_1777186789699",
@@ -137,7 +115,7 @@
       "data": {
         "captureScreenshot": false,
         "screenshotTiming": "after",
-        "label": "Stop",
+        "label": "显示外部变量结果",
         "nodeType": "stop",
         "params": {
           "stopType": "success",
@@ -146,21 +124,20 @@
         "inputs": {},
         "stopOnFailure": true,
         "stopType": "success",
-        "description": "",
+        "description": "执行完成显示外部变量经过循环修改后的结果",
         "disabled": false,
         "waitBeforeMs": 0,
         "waitAfterMs": 0,
         "errorMessage": "${test}"
       },
       "position": {
-        "x": 1110.574396457002,
-        "y": 434.90573257397523
+        "x": 391.5,
+        "y": 354
       },
       "measured": {
-        "width": 150,
-        "height": 97
-      },
-      "selected": false
+        "width": 171,
+        "height": 69
+      }
     },
     {
       "id": "node_1777186789700",
@@ -169,13 +146,13 @@
       "data": {
         "captureScreenshot": false,
         "screenshotTiming": "after",
-        "label": "Set",
+        "label": "设置外部变量",
         "nodeType": "set",
         "params": {
           "variableName": "test",
           "operation": "set",
           "valueType": "number",
-          "value": "1"
+          "value": "0"
         },
         "inputs": {},
         "stopOnFailure": true,
@@ -183,21 +160,20 @@
         "variableName": "test",
         "operation": "set",
         "valueType": "number",
-        "value": "1",
-        "description": "",
+        "value": "0",
+        "description": "这个变量可以在循环中进行修改",
         "disabled": false,
         "waitBeforeMs": 0,
         "waitAfterMs": 0
       },
       "position": {
-        "x": 857.1904912676503,
-        "y": 82.57562970026902
+        "x": 90.5,
+        "y": 0
       },
       "measured": {
-        "width": 200,
-        "height": 108
-      },
-      "selected": false
+        "width": 233,
+        "height": 77
+      }
     },
     {
       "id": "node_1777186789701",
@@ -206,7 +182,7 @@
       "data": {
         "captureScreenshot": false,
         "screenshotTiming": "after",
-        "label": "Set",
+        "label": "修改外部变量",
         "nodeType": "set",
         "params": {
           "variableName": "test",
@@ -221,70 +197,52 @@
         "operation": "set",
         "valueType": "number",
         "value": "${test}+1",
-        "description": "",
+        "description": "修改外部变量每次加1",
         "disabled": false,
         "waitBeforeMs": 0,
         "waitAfterMs": 0
       },
       "position": {
-        "x": 812.3977504590983,
-        "y": 625.1721258733301
+        "x": 107,
+        "y": 523
       },
       "measured": {
-        "width": 213,
-        "height": 108
-      },
-      "selected": false
+        "width": 200,
+        "height": 77
+      }
     }
   ],
   "edges": [
     {
-      "id": "xy-edge__node_1777186789694body-node_1777186789695",
+      "id": "xy-edge__node_1777186789694body-node_1777186789695_0_yu9rqr",
       "source": "node_1777186789694",
       "target": "node_1777186789695",
-      "sourceHandle": "body",
-      "animated": false,
-      "selected": false
+      "sourceHandle": "body"
     },
     {
-      "id": "xy-edge__node_1777186789695true-node_1777186789697",
+      "id": "xy-edge__node_1777186789695true-node_1777186789697_1_ad14h3",
       "source": "node_1777186789695",
       "target": "node_1777186789697",
-      "sourceHandle": "true",
-      "animated": false,
-      "selected": false
+      "sourceHandle": "true"
     },
     {
-      "id": "xy-edge__node_1777186789694done-node_1777186789699",
+      "id": "xy-edge__node_1777186789694done-node_1777186789699_2_v76moy",
       "source": "node_1777186789694",
       "target": "node_1777186789699",
-      "sourceHandle": "done",
-      "animated": false,
-      "selected": false
+      "sourceHandle": "done"
     },
     {
-      "id": "xy-edge__node_1777186789700-node_1777186789694",
+      "id": "xy-edge__node_1777186789700-node_1777186789694_3_rp9ts5",
       "source": "node_1777186789700",
-      "target": "node_1777186789694",
-      "animated": false,
-      "selected": false
+      "target": "node_1777186789694"
     },
     {
-      "id": "xy-edge__node_1777186789695false-node_1777186789701",
+      "id": "xy-edge__node_1777186789695false-node_1777186789701_4_ln9t1s",
       "source": "node_1777186789695",
       "target": "node_1777186789701",
-      "sourceHandle": "false",
-      "animated": false,
-      "selected": false
-    },
-    {
-      "id": "xy-edge__node_1777186789701-node_1777186789698",
-      "source": "node_1777186789701",
-      "target": "node_1777186789698",
-      "animated": false,
-      "selected": false
+      "sourceHandle": "false"
     }
   ],
   "groups": [],
-  "exportedAt": "2026-04-26T07:06:38.423Z"
+  "exportedAt": "2026-04-26T07:25:30.108Z"
 }
