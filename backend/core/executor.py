@@ -32,6 +32,7 @@ from .node_handlers import (
     NODE_HANDLERS,
     NodeHandler,
     evaluate_condition_config,
+    get_private_store,
     get_variable_store,
     normalize_node,
 )
@@ -75,6 +76,9 @@ class ExecutionContext:
     outputs: Dict[str, Any] = field(
         default_factory=dict
     )  # node_id -> serialized_output
+    private_outputs: Dict[str, Any] = field(
+        default_factory=dict
+    )  # node_id -> private runtime-only output
     locals: Dict[str, Any] = field(
         default_factory=dict
     )  # local variables (e.g. foreach.item)
@@ -672,13 +676,16 @@ class ExecutionSandbox:
         pages = {"main": page}
 
         # 初始化运行时上下文
+        outputs: Dict[str, Any] = {}
+        private_store = get_private_store(outputs)
         self.runtime_ctx = ExecutionContext(
             sandbox=self,
             item=self.item,
             page=page,
             pages=pages,
             values={},
-            outputs={},
+            outputs=outputs,
+            private_outputs=private_store,
             locals={},
         )
         get_variable_store(self.runtime_ctx.outputs)
@@ -791,9 +798,14 @@ async def execute_node(
         if variable_store is None:
             variable_store = {}
             sandbox.runtime_ctx.outputs["__vars__"] = variable_store
+        private_store = effective_outputs.get("__private__")
+        if private_store is None:
+            private_store = {}
+            sandbox.runtime_ctx.outputs["__private__"] = private_store
         # 合并 extra_outputs，但保留对 __vars__ 的引用
         effective_outputs = {**effective_outputs, **extra_outputs}
         effective_outputs["__vars__"] = variable_store
+        effective_outputs["__private__"] = private_store
 
     normalized_node = normalize_node(node_data, effective_outputs)
     node_id = normalized_node["id"]

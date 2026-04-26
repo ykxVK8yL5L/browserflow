@@ -22,6 +22,7 @@ NodeHandler = Callable[
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 DATA_DIR = os.path.join(BACKEND_DIR, "data")
 VARIABLE_STORE_KEY = "__vars__"
+PRIVATE_STORE_KEY = "__private__"
 TEMPLATE_PATTERN = re.compile(r"\$\{([^}]+)\}")
 RANDOM_EXPR_PATTERN = re.compile(
     r"^random\.(alnum|alpha|numeric|hex|password|ms_password|uuid)\((.*?)\)(?::([A-Za-z_][A-Za-z0-9_]*))?$"
@@ -125,6 +126,14 @@ def get_variable_store(outputs: Dict[str, Any]) -> Dict[str, Any]:
     if not isinstance(store, dict):
         store = {}
         outputs[VARIABLE_STORE_KEY] = store
+    return store
+
+
+def get_private_store(outputs: Dict[str, Any]) -> Dict[str, Any]:
+    store = outputs.get(PRIVATE_STORE_KEY)
+    if not isinstance(store, dict):
+        store = {}
+        outputs[PRIVATE_STORE_KEY] = store
     return store
 
 
@@ -743,15 +752,28 @@ def resolve_store_reference(reference: str, outputs: Dict[str, Any]) -> Any:
     if first_token == "vars":
         return _resolve_from_tokens(variable_store, tokens[1:])
 
+    if first_token == "private":
+        private_store = get_private_store(outputs)
+        return _resolve_from_tokens(private_store, tokens[1:])
+
     node_id = first_token
     current = outputs.get(node_id) if isinstance(node_id, str) else None
+    private_store = get_private_store(outputs)
+    private_current = private_store.get(node_id) if isinstance(node_id, str) else None
 
     if current is None:
         current = outputs.get(reference)
         if current is not None:
             return current
 
-    return _resolve_output_payload_reference(current, tokens[1:])
+    resolved = _resolve_output_payload_reference(current, tokens[1:])
+    if resolved is not None:
+        return resolved
+
+    if private_current is not None:
+        return _resolve_from_tokens(private_current, tokens[1:])
+
+    return None
 
 
 def resolve_template_value(value: Any, outputs: Dict[str, Any]) -> Any:

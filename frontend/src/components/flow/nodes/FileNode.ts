@@ -29,12 +29,48 @@ const FileNode: NodeTypeConfig = {
       valueSource: "params",
     },
     {
+      key: "sensitive",
+      label: "敏感内容模式",
+      type: "checkbox",
+      defaultValue: false,
+      valueSource: "params",
+      placeholder: "启用后文件正文不写入日志/执行记录",
+      visibleWhen: {
+        action: "read",
+      },
+    },
+    {
+      key: "returnContent",
+      label: "返回文件内容",
+      type: "checkbox",
+      defaultValue: true,
+      valueSource: "params",
+      placeholder: "关闭后不返回正文，仅返回路径/大小等元信息",
+      visibleWhen: {
+        action: "read",
+      },
+    },
+    {
+      key: "parseJson",
+      label: "按 JSON 解析",
+      type: "checkbox",
+      defaultValue: false,
+      valueSource: "params",
+      placeholder: "启用后可使用 ${nodeId.content.key} 访问 JSON 字段",
+      visibleWhen: {
+        action: "read",
+      },
+    },
+    {
       key: "content",
       label: "写入内容",
       type: "text",
       placeholder: "${node_xxx.result}",
       defaultValue: "",
       valueSource: "params",
+      visibleWhen: {
+        action: "write",
+      },
     },
     {
       key: "encoding",
@@ -54,6 +90,9 @@ const FileNode: NodeTypeConfig = {
       ],
       defaultValue: "true",
       valueSource: "params",
+      visibleWhen: {
+        action: "write",
+      },
     },
     {
       key: "overwrite",
@@ -65,6 +104,9 @@ const FileNode: NodeTypeConfig = {
       ],
       defaultValue: "true",
       valueSource: "params",
+      visibleWhen: {
+        action: "write",
+      },
     },
   ],
   subtitle: "{action} {path}",

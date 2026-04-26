@@ -5,6 +5,7 @@
 
 import os
 import shutil
+import copy
 
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy import text
@@ -84,10 +85,11 @@ def build_screenshot_url(execution_id: str, node_id: str, filename: str) -> str:
 def enrich_result_data_with_screenshot(
     execution_id: str, node_id: str, result_data: Optional[dict]
 ) -> Optional[dict]:
-    if not isinstance(result_data, dict):
-        return result_data
+    sanitized = sanitize_node_result_data(result_data)
+    if not isinstance(sanitized, dict):
+        return sanitized
 
-    enriched = dict(result_data)
+    enriched = dict(sanitized)
     filename = enriched.get("filename")
     if filename:
         enriched["screenshot_url"] = build_screenshot_url(
@@ -100,6 +102,48 @@ def extract_screenshot_url(result_data: Optional[dict]) -> Optional[str]:
     if not isinstance(result_data, dict):
         return None
     return result_data.get("screenshot_url")
+
+
+def sanitize_node_result_data(result_data: Optional[dict]) -> Optional[dict]:
+    """清理不应出现在执行记录中的敏感结果。"""
+    if not isinstance(result_data, dict):
+        return result_data
+
+    sanitized = dict(result_data)
+    if sanitized.get("sensitive") is True:
+        sanitized.pop("content", None)
+
+    return sanitized
+
+
+def sanitize_snapshot_node(node: dict) -> dict:
+    """清理流程快照中的敏感节点配置。"""
+    if not isinstance(node, dict):
+        return node
+
+    sanitized_node = copy.deepcopy(node)
+    node_type = sanitized_node.get("type")
+    data = sanitized_node.get("data")
+
+    if node_type != "file" or not isinstance(data, dict):
+        return sanitized_node
+
+    params = data.get("params")
+    action = None
+    if isinstance(params, dict):
+        action = params.get("action")
+    if action is None:
+        action = data.get("action")
+
+    if str(action or "").lower() != "write":
+        return sanitized_node
+
+    if isinstance(params, dict) and "content" in params:
+        params["content"] = "[REDACTED]"
+    if "content" in data:
+        data["content"] = "[REDACTED]"
+
+    return sanitized_node
 
 
 def remove_execution_screenshots(execution_id: str, user_id: str) -> bool:
@@ -204,15 +248,18 @@ def build_flow_snapshot(flow_data: Optional[dict]) -> Optional[dict]:
     if not isinstance(nodes, list) or not isinstance(edges, list):
         return None
 
-    flow_snapshot = {"nodes": nodes, "edges": edges}
+    flow_snapshot = {
+        "nodes": [sanitize_snapshot_node(node) for node in nodes],
+        "edges": copy.deepcopy(edges),
+    }
 
     groups = flow_data.get("groups")
     if isinstance(groups, list):
-        flow_snapshot["groups"] = groups
+        flow_snapshot["groups"] = copy.deepcopy(groups)
 
     options = flow_data.get("options")
     if isinstance(options, dict):
-        flow_snapshot["options"] = options
+        flow_snapshot["options"] = copy.deepcopy(options)
 
     return flow_snapshot
 

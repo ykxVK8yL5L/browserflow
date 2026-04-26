@@ -42,6 +42,9 @@ async def handle_file_node(
     content = data.get("content", "")
     create_directories = str(data.get("createDirectories", "true")).lower() == "true"
     overwrite = str(data.get("overwrite", "true")).lower() == "true"
+    sensitive = str(data.get("sensitive", "false")).lower() == "true"
+    return_content = str(data.get("returnContent", "true")).lower() == "true"
+    parse_json = str(data.get("parseJson", "false")).lower() == "true"
 
     user_root = _get_user_root(getattr(ctx.item, "user_id", None))
     user_root.mkdir(parents=True, exist_ok=True)
@@ -54,6 +57,15 @@ async def handle_file_node(
             raise ValueError(f"目标不是文件: {relative_path}")
 
         file_content = target_path.read_text(encoding=encoding)
+        resolved_content: Any = file_content
+        if parse_json:
+            try:
+                resolved_content = json.loads(file_content)
+            except json.JSONDecodeError as exc:
+                raise ValueError(
+                    f"文件内容不是有效 JSON，无法按 JSON 解析: {relative_path}"
+                ) from exc
+
         relative_result_path = target_path.relative_to(user_root).as_posix()
         result.message = f"已读取文件: {relative_result_path}"
         result.data = {
@@ -61,8 +73,27 @@ async def handle_file_node(
             "path": relative_result_path,
             "encoding": encoding,
             "size": target_path.stat().st_size,
-            "content": file_content,
+            "sensitive": sensitive,
+            "hasContent": bool(file_content),
+            "parseJson": parse_json,
         }
+
+        if return_content and not sensitive:
+            result.data["content"] = resolved_content
+
+        if sensitive:
+            private_payload = {
+                "content": resolved_content,
+                "path": relative_result_path,
+                "encoding": encoding,
+                "size": target_path.stat().st_size,
+                "parseJson": parse_json,
+            }
+            ctx.private_outputs[node_id] = private_payload
+            private_store = ctx.outputs.get("__private__")
+            if isinstance(private_store, dict):
+                private_store[node_id] = private_payload
+
         ctx.outputs[node_id] = result.data
         return
 

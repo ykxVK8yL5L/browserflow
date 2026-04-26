@@ -10,6 +10,7 @@ export interface NodeField {
   options?: { label: string; value: string }[];
   defaultValue?: string | number | boolean;
   listSchema?: NodeField[];
+  visibleWhen?: Record<string, string | number | boolean>;
 }
 
 export interface NodeInputDef {

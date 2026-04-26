@@ -68,6 +68,14 @@ const NodeEditor = ({ node, open, onSave, onClose, readOnly = false }: NodeEdito
     setFieldValues((prev) => ({ ...prev, [key]: value }));
   };
 
+  const isFieldVisible = (field: NodeField) => {
+    if (!field.visibleWhen) return true;
+
+    return Object.entries(field.visibleWhen).every(([dependencyKey, expectedValue]) => {
+      return fieldValues[dependencyKey] === expectedValue;
+    });
+  };
+
   const handleSave = () => {
     if (readOnly) {
       onClose();
@@ -347,6 +355,19 @@ const NodeEditor = ({ node, open, onSave, onClose, readOnly = false }: NodeEdito
                 <p className="mt-1 text-xs font-mono text-muted-foreground">{config.description}</p>
               </div>
 
+              {nodeType === "file" && String(fieldValues.action ?? "read") === "read" ? (
+                <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3">
+                  <p className="text-xs font-mono font-medium text-amber-300">敏感文件读取说明</p>
+                  <p className="mt-1 text-xs font-mono text-amber-100/80">
+                    开启“敏感内容模式”后，文件正文不会出现在执行日志和节点结果中；后续节点仍可继续使用相同引用，例如
+                    <span className="mx-1 rounded bg-background/60 px-1 py-0.5 text-[11px]">${"${read_file.content}"}</span>
+                    。开启“按 JSON 解析”后，如果文件内容是合法 JSON，还可以使用
+                    <span className="mx-1 rounded bg-background/60 px-1 py-0.5 text-[11px]">${"${read_file.content.key}"}</span>
+                    直接访问字段。
+                  </p>
+                </div>
+              ) : null}
+
               {config.inputDefs && config.inputDefs.length > 0 ? (
                 <div className="space-y-4 rounded-md border border-border bg-secondary/20 p-3">
                   <div>
@@ -360,7 +381,7 @@ const NodeEditor = ({ node, open, onSave, onClose, readOnly = false }: NodeEdito
               {config.fields.length === 0 ? (
                 <p className="text-sm text-muted-foreground font-mono">该节点没有可配置项。</p>
               ) : (
-                config.fields.map((field) => (
+                config.fields.filter(isFieldVisible).map((field) => (
                   <div key={field.key} className="flex flex-col gap-1.5">
                     <label className={labelClass}>{field.label}</label>
                     {renderField(field)}
