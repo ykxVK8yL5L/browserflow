@@ -1,0 +1,240 @@
+{
+  "name": "文件读写示例",
+  "description": "文件读写示例",
+  "nodes": [
+    {
+      "id": "node_1777192844915",
+      "type": "file",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "读取文件",
+        "nodeType": "file",
+        "params": {
+          "action": "read",
+          "path": "test.json",
+          "content": "",
+          "encoding": "utf-8",
+          "createDirectories": "true",
+          "overwrite": "true"
+        },
+        "inputs": {},
+        "stopOnFailure": false,
+        "outputType": "object",
+        "action": "read",
+        "path": "test.json",
+        "content": "",
+        "encoding": "utf-8",
+        "createDirectories": "true",
+        "overwrite": "true",
+        "description": "读取文件test.json内容",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 0
+      },
+      "position": {
+        "x": 267.25,
+        "y": 160
+      }
+    },
+    {
+      "id": "node_1777192844918",
+      "type": "stop",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "Stop",
+        "nodeType": "stop",
+        "params": {
+          "stopType": "success",
+          "errorMessage": "文件内容:${node_1777192844915.content}"
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "stopType": "success",
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 0,
+        "errorMessage": "文件内容:${node_1777192844915.content}"
+      },
+      "position": {
+        "x": 96.75,
+        "y": 337
+      }
+    },
+    {
+      "id": "node_1777193943403",
+      "type": "if",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "判断是否是文件不存在的错误",
+        "nodeType": "if",
+        "params": {
+          "leftValue": "${node_1777192844915.error}",
+          "leftValueType": "string",
+          "operator": "contains",
+          "value": "不存在",
+          "valueType": "auto",
+          "condition": "",
+          "onError": "fail"
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "leftValue": "${node_1777192844915.error}",
+        "leftValueType": "string",
+        "operator": "contains",
+        "value": "不存在",
+        "valueType": "auto",
+        "condition": "",
+        "onError": "fail",
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 0
+      },
+      "position": {
+        "x": 410.75,
+        "y": 337
+      }
+    },
+    {
+      "id": "node_1777193943404",
+      "type": "stop",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "停止执行",
+        "nodeType": "stop",
+        "params": {
+          "stopType": "error",
+          "errorMessage": "未知错误信息:${node_1777192844915.error}"
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "stopType": "error",
+        "description": "没有可处理的错误停止执行",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 0,
+        "errorMessage": "未知错误信息:${node_1777192844915.error}"
+      },
+      "position": {
+        "x": 482.75,
+        "y": 510
+      }
+    },
+    {
+      "id": "node_1777193943405",
+      "type": "file",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "文件不存在就创建文件",
+        "nodeType": "file",
+        "params": {
+          "action": "write",
+          "path": "test.json",
+          "content": "${content}",
+          "encoding": "utf-8",
+          "createDirectories": "true",
+          "overwrite": "true"
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "outputType": "object",
+        "action": "write",
+        "path": "test.json",
+        "content": "${content}",
+        "encoding": "utf-8",
+        "createDirectories": "true",
+        "overwrite": "true",
+        "description": "文件不存在就创建test.json文件",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 0
+      },
+      "position": {
+        "x": 307.25,
+        "y": 506
+      }
+    },
+    {
+      "id": "node_1777193943406",
+      "type": "set",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "设置要写入文件的内容",
+        "nodeType": "set",
+        "params": {
+          "variableName": "content",
+          "operation": "set",
+          "valueType": "object",
+          "value": "{}"
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "outputType": "object",
+        "variableName": "content",
+        "operation": "set",
+        "valueType": "object",
+        "value": "{}",
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 0
+      },
+      "position": {
+        "x": 314.25,
+        "y": 0
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "xy-edge__node_1777192844915-node_1777192844918",
+      "source": "node_1777192844915",
+      "target": "node_1777192844918",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1777192844915error-node_1777193943403",
+      "source": "node_1777192844915",
+      "target": "node_1777193943403",
+      "sourceHandle": "error",
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1777193943403false-node_1777193943404",
+      "source": "node_1777193943403",
+      "target": "node_1777193943404",
+      "sourceHandle": "false",
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1777193943403true-node_1777193943405",
+      "source": "node_1777193943403",
+      "target": "node_1777193943405",
+      "sourceHandle": "true",
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1777193943406-node_1777192844915",
+      "source": "node_1777193943406",
+      "target": "node_1777192844915",
+      "sourceHandle": null,
+      "targetHandle": null
+    }
+  ],
+  "groups": [],
+  "exportedAt": "2026-04-26T09:10:01.728Z"
+}

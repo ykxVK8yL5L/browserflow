@@ -20,6 +20,8 @@ const getSourceHandleClassName = (handleId: ProxyHandleId, leftPercent?: number)
         base.push("!bg-emerald-500");
     } else if (handleId === "false") {
         base.push("!bg-red-500");
+    } else if (handleId === "error") {
+        base.push("!bg-amber-500");
     } else if (handleId === "done") {
         base.push("!bg-emerald-600");
     } else {
@@ -32,6 +34,7 @@ const getSourceHandleClassName = (handleId: ProxyHandleId, leftPercent?: number)
 const getHandleLabel = (handleId: ProxyHandleId) => {
     if (handleId === "true") return "True";
     if (handleId === "false") return "False";
+    if (handleId === "error") return "Error";
     if (handleId === "body") return "Body";
     if (handleId === "done") return "Done";
     return null;
@@ -46,6 +49,8 @@ const getLabelClassName = (handleId: ProxyHandleId, leftPercent?: number) => {
         base.push("text-emerald-500");
     } else if (handleId === "false") {
         base.push("text-red-500");
+    } else if (handleId === "error") {
+        base.push("text-amber-500");
     } else if (handleId === "done") {
         base.push("text-emerald-600");
     } else {

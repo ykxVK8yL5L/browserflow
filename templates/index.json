@@ -48,6 +48,16 @@
       "sort_order": 20,
       "path": "code-snippets/滑动验证码.json"
     },
+     {
+      "id": "file-read-write",
+      "category": "code-snippets",
+      "name": "文件读写",
+      "description": "文件读写操作示例。",
+      "tags": ["文件","片段"],
+      "author": "官方",
+      "sort_order": 20,
+      "path": "code-snippets/文件读写示例.json"
+    },
     {
       "id": "215-check-in",
       "category": "check-in",

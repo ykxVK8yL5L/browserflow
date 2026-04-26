@@ -194,6 +194,17 @@ def _resolve_from_tokens(root: Any, tokens: list[Any]) -> Any:
     return current
 
 
+def _resolve_output_payload_reference(current: Any, tokens: list[Any]) -> Any:
+    resolved = _resolve_from_tokens(current, tokens)
+    if resolved is not None:
+        return resolved
+
+    if isinstance(current, dict) and "data" in current:
+        return _resolve_from_tokens(current.get("data"), tokens)
+
+    return None
+
+
 def _generate_random_values(kind: str, length: int | None, count: int) -> Any:
     if count < 1:
         count = 1
@@ -740,7 +751,7 @@ def resolve_store_reference(reference: str, outputs: Dict[str, Any]) -> Any:
         if current is not None:
             return current
 
-    return _resolve_from_tokens(current, tokens[1:])
+    return _resolve_output_payload_reference(current, tokens[1:])
 
 
 def resolve_template_value(value: Any, outputs: Dict[str, Any]) -> Any:

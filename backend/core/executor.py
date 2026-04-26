@@ -119,6 +119,21 @@ def build_node_result_payload(result: NodeResult) -> Dict[str, Any]:
     }
 
 
+def build_node_output_store(result: NodeResult) -> Dict[str, Any]:
+    """统一构建供后续节点引用的输出结构。"""
+    payload: Dict[str, Any] = {
+        "status": result.status,
+        "error": result.error,
+        "message": result.message,
+        "data": result.data if isinstance(result.data, dict) else result.data,
+    }
+
+    if isinstance(result.data, dict) and "result" in result.data:
+        payload["result"] = result.data.get("result")
+
+    return payload
+
+
 def finalize_result(result: NodeResult) -> None:
     """统一补齐结束时间和耗时。"""
     result.finished_at = datetime.utcnow()
@@ -925,6 +940,9 @@ async def execute_node(
 
     finalize_result(result)
 
+    if sandbox.runtime_ctx:
+        sandbox.runtime_ctx.outputs[result.node_id] = build_node_output_store(result)
+
     # 更新节点执行记录（完成时）
     update_node_execution_record(node_execution_id, result)
 
@@ -954,6 +972,14 @@ def resolve_branch_condition(edge: dict) -> str:
     edge_data = edge.get("data", {}) or {}
     cond = edge_data.get("condition") or edge.get("sourceHandle") or "true"
     return str(cond).lower()
+
+
+def _get_next_predecessor_output(
+    result: NodeResult, branch_condition: str | None = None
+) -> Any:
+    if branch_condition == "error":
+        return build_node_output_store(result)
+    return result.data
 
 
 async def execute_foreach_children(
@@ -1043,6 +1069,21 @@ async def execute_foreach_children(
                     child_result.status = "failed"
 
             if child_result.status == "failed":
+                child_error_edges = get_outgoing_edges_by_handle(
+                    edges, current_node_id, "error"
+                )
+                if child_error_edges:
+                    for edge in reversed(child_error_edges):
+                        target_node = find_node_by_id(nodes, edge.get("target"))
+                        if target_node:
+                            iteration_queue.append(
+                                (
+                                    target_node,
+                                    _get_next_predecessor_output(child_result, "error"),
+                                )
+                            )
+                    continue
+
                 foreach_result.status = "failed"
                 foreach_result.error = child_result.error
                 foreach_result.message = f"Foreach child failed at iteration {index + 1}: {child_result.node_id}"
@@ -1128,9 +1169,16 @@ async def execute_foreach_children(
                         break
             else:
                 for edge in reversed(outgoing_edges):
+                    if resolve_branch_condition(edge) == "error":
+                        continue
                     target_node = find_node_by_id(nodes, edge.get("target"))
                     if target_node:
-                        iteration_queue.append((target_node, child_result.data))
+                        iteration_queue.append(
+                            (
+                                target_node,
+                                _get_next_predecessor_output(child_result),
+                            )
+                        )
 
         iterations.append(
             {
@@ -1283,6 +1331,21 @@ async def execute_loop_children(
                     return "stopped"
 
             if child_result.status == "failed":
+                child_error_edges = get_outgoing_edges_by_handle(
+                    edges, current_node_id, "error"
+                )
+                if child_error_edges:
+                    for edge in reversed(child_error_edges):
+                        target_node = find_node_by_id(nodes, edge.get("target"))
+                        if target_node:
+                            iteration_queue.append(
+                                (
+                                    target_node,
+                                    _get_next_predecessor_output(child_result, "error"),
+                                )
+                            )
+                    continue
+
                 loop_result.status = "failed"
                 loop_result.error = child_result.error
                 loop_result.message = f"{loop_type.title()} child failed at iteration {iteration_index + 1}: {child_result.node_id}"
@@ -1373,9 +1436,16 @@ async def execute_loop_children(
                         break
             else:
                 for edge in reversed(outgoing_edges):
+                    if resolve_branch_condition(edge) == "error":
+                        continue
                     target_node = find_node_by_id(nodes, edge.get("target"))
                     if target_node:
-                        iteration_queue.append((target_node, child_result.data))
+                        iteration_queue.append(
+                            (
+                                target_node,
+                                _get_next_predecessor_output(child_result),
+                            )
+                        )
 
         iterations.append(
             {"index": iteration_index, **iteration_seed, "results": iteration_results}
@@ -1760,9 +1830,11 @@ async def run_execution(item: ExecutionQueueItem) -> Dict[str, Any]:
             )
             results.append(result)
 
+            serialized_result = build_node_output_store(result)
+
             # 将结果存入上下文，供后续节点引用
             if sandbox.runtime_ctx:
-                sandbox.runtime_ctx.outputs[result.node_id] = result.data
+                sandbox.runtime_ctx.outputs[result.node_id] = serialized_result
             executed_nodes.add(node_id)
 
             if _is_loop_node_type(result.node_type) and result.status != "failed":
@@ -1775,7 +1847,9 @@ async def run_execution(item: ExecutionQueueItem) -> Dict[str, Any]:
                     result,
                 )
                 if sandbox.runtime_ctx:
-                    sandbox.runtime_ctx.outputs[result.node_id] = result.data
+                    sandbox.runtime_ctx.outputs[result.node_id] = (
+                        build_node_output_store(result)
+                    )
                 if foreach_state == "failed":
                     break
                 if foreach_state == "stopped":
@@ -1786,7 +1860,9 @@ async def run_execution(item: ExecutionQueueItem) -> Dict[str, Any]:
                         target_id = edge.get("target")
                         target_node = find_node_by_id(nodes, target_id)
                         if target_node:
-                            queue.append((target_node, result.data))
+                            queue.append(
+                                (target_node, _get_next_predecessor_output(result))
+                            )
                     continue
 
             # 如果节点失败，检查 stopOnFailure 选项
@@ -1842,6 +1918,20 @@ async def run_execution(item: ExecutionQueueItem) -> Dict[str, Any]:
                         },
                     )
 
+                    error_edges = get_outgoing_edges_by_handle(edges, node_id, "error")
+                    if error_edges:
+                        for edge in reversed(error_edges):
+                            target_id = edge.get("target")
+                            target_node = find_node_by_id(nodes, target_id)
+                            if target_node:
+                                queue.append(
+                                    (
+                                        target_node,
+                                        _get_next_predecessor_output(result, "error"),
+                                    )
+                                )
+                        continue
+
             # 如果是 stop 节点，停止执行
             if result.node_type == "stop":
                 break
@@ -1888,7 +1978,9 @@ async def run_execution(item: ExecutionQueueItem) -> Dict[str, Any]:
                         if target_node:
                             if result.node_type == "foreach":
                                 continue
-                            queue.append((target_node, result.data))
+                            queue.append(
+                                (target_node, _get_next_predecessor_output(result))
+                            )
                             found_branch = True
                         break  # 分支节点只走一个匹配分支
 
@@ -1900,12 +1992,16 @@ async def run_execution(item: ExecutionQueueItem) -> Dict[str, Any]:
             else:
                 # 普通节点：将所有后续节点按反序加入栈中，以保证正序执行
                 for edge in reversed(outgoing_edges):
+                    if resolve_branch_condition(edge) == "error":
+                        continue
                     target_id = edge.get("target")
                     target_node = find_node_by_id(nodes, target_id)
                     if target_node:
                         if result.node_type == "foreach":
                             continue
-                        queue.append((target_node, result.data))
+                        queue.append(
+                            (target_node, _get_next_predecessor_output(result))
+                        )
 
         # 计算执行结果
 

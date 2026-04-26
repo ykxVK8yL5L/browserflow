@@ -77,6 +77,13 @@ const COLLAPSED_GROUP_HEADER_HEIGHT = 44;
 const getNodeTypeName = (node?: Node | null) =>
     typeof node?.data?.nodeType === "string" ? node.data.nodeType : node?.type;
 
+const isStopOnFailureDisabled = (value: unknown) => {
+    if (typeof value === "string") {
+        return value.toLowerCase() === "false";
+    }
+    return value === false;
+};
+
 const getNodeSourceHandles = (node?: Node | null) => {
     const nodeType = getNodeTypeName(node);
     if (["if", "check_existence"].includes(nodeType || "")) {
@@ -87,6 +94,10 @@ const getNodeSourceHandles = (node?: Node | null) => {
     }
     if (["stop", "break", "continue"].includes(nodeType || "")) {
         return [];
+    }
+    const stopOnFailure = node?.data?.stopOnFailure;
+    if (isStopOnFailureDisabled(stopOnFailure)) {
+        return [undefined, "error"];
     }
     return [undefined];
 };
@@ -1936,8 +1947,8 @@ const FlowCanvas = ({
         });
 
         const sortedEdges = [...edges].sort((a, b) => {
-            const leftHandles = new Set(["true", "body"]);
-            const rightHandles = new Set(["false", "done"]);
+            const leftHandles = new Set(["", "true", "body"]);
+            const rightHandles = new Set(["false", "done", "error"]);
             const aIsLeft = leftHandles.has(a.sourceHandle || "");
             const bIsLeft = leftHandles.has(b.sourceHandle || "");
             const aIsRight = rightHandles.has(a.sourceHandle || "");
@@ -2011,32 +2022,36 @@ const FlowCanvas = ({
             });
         };
 
-        const BRANCH_BASE_OFFSET = 180;
+        const BRANCH_BASE_OFFSET = 120;
         const DIRECT_BRANCH_MIN_GAP = 140;
         const DIRECT_BRANCH_EXTRA_GAP = 90;
 
         contentNodes.forEach((node) => {
             const outgoing = edges.filter((edge) => edge.source === node.id);
-            const trueEdge = outgoing.find((edge) => edge.sourceHandle === "true" || edge.sourceHandle === "body");
-            const falseEdge = outgoing.find((edge) => edge.sourceHandle === "false" || edge.sourceHandle === "done");
-            if (!trueEdge || !falseEdge) return;
+            const primaryEdge = outgoing.find(
+                (edge) => !edge.sourceHandle || edge.sourceHandle === "true" || edge.sourceHandle === "body",
+            );
+            const secondaryEdge = outgoing.find(
+                (edge) => edge.sourceHandle === "false" || edge.sourceHandle === "done" || edge.sourceHandle === "error",
+            );
+            if (!primaryEdge || !secondaryEdge) return;
 
-            const trueTargetPos = nodePositions[trueEdge.target];
-            const falseTargetPos = nodePositions[falseEdge.target];
-            if (!trueTargetPos || !falseTargetPos) return;
+            const primaryTargetPos = nodePositions[primaryEdge.target];
+            const secondaryTargetPos = nodePositions[secondaryEdge.target];
+            if (!primaryTargetPos || !secondaryTargetPos) return;
 
-            if (trueTargetPos.x >= falseTargetPos.x) {
-                const trueReachable = collectReachable(trueEdge.target);
-                const falseReachable = collectReachable(falseEdge.target);
-                const overlap = new Set([...trueReachable].filter((nodeId) => falseReachable.has(nodeId)));
-                const trueOnly = new Set([...trueReachable].filter((nodeId) => !overlap.has(nodeId)));
-                const falseOnly = new Set([...falseReachable].filter((nodeId) => !overlap.has(nodeId)));
+            if (primaryTargetPos.x >= secondaryTargetPos.x) {
+                const primaryReachable = collectReachable(primaryEdge.target);
+                const secondaryReachable = collectReachable(secondaryEdge.target);
+                const overlap = new Set([...primaryReachable].filter((nodeId) => secondaryReachable.has(nodeId)));
+                const primaryOnly = new Set([...primaryReachable].filter((nodeId) => !overlap.has(nodeId)));
+                const secondaryOnly = new Set([...secondaryReachable].filter((nodeId) => !overlap.has(nodeId)));
                 const gap = Math.max(
                     DIRECT_BRANCH_MIN_GAP,
-                    Math.abs(trueTargetPos.x - falseTargetPos.x) / 2 + DIRECT_BRANCH_EXTRA_GAP,
+                    Math.abs(primaryTargetPos.x - secondaryTargetPos.x) / 2 + DIRECT_BRANCH_EXTRA_GAP,
                 );
-                shiftReachableNodes(trueOnly, -gap);
-                shiftReachableNodes(falseOnly, gap);
+                shiftReachableNodes(primaryOnly, -gap);
+                shiftReachableNodes(secondaryOnly, gap);
             }
         });
 
@@ -2056,8 +2071,12 @@ const FlowCanvas = ({
         };
 
         edges.forEach((edge) => {
-            if (edge.sourceHandle === "true" || edge.sourceHandle === "body") traverse(edge.target, trueReachable);
-            if (edge.sourceHandle === "false" || edge.sourceHandle === "done") traverse(edge.target, falseReachable);
+            if (!edge.sourceHandle || edge.sourceHandle === "true" || edge.sourceHandle === "body") {
+                traverse(edge.target, trueReachable);
+            }
+            if (edge.sourceHandle === "false" || edge.sourceHandle === "done" || edge.sourceHandle === "error") {
+                traverse(edge.target, falseReachable);
+            }
         });
 
         contentNodes.forEach((node) => {
@@ -2067,6 +2086,24 @@ const FlowCanvas = ({
             const isFalse = falseReachable.has(node.id);
             if (isTrue && !isFalse) pos.x -= BRANCH_BASE_OFFSET;
             else if (isFalse && !isTrue) pos.x += BRANCH_BASE_OFFSET;
+        });
+
+        contentNodes.forEach((node) => {
+            const outgoing = edges.filter((edge) => edge.source === node.id);
+            const primaryEdge = outgoing.find(
+                (edge) => !edge.sourceHandle || edge.sourceHandle === "true" || edge.sourceHandle === "body",
+            );
+            const secondaryEdge = outgoing.find(
+                (edge) => edge.sourceHandle === "false" || edge.sourceHandle === "done" || edge.sourceHandle === "error",
+            );
+            if (!primaryEdge || !secondaryEdge) return;
+
+            const nodePos = nodePositions[node.id];
+            const primaryTargetPos = nodePositions[primaryEdge.target];
+            const secondaryTargetPos = nodePositions[secondaryEdge.target];
+            if (!nodePos || !primaryTargetPos || !secondaryTargetPos) return;
+
+            nodePos.x = (primaryTargetPos.x + secondaryTargetPos.x) / 2;
         });
 
         [...groups]

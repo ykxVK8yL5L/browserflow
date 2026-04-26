@@ -1,5 +1,5 @@
 import { memo, useCallback, useState, useRef, useEffect } from "react";
-import { Handle, Position, type NodeProps, useReactFlow } from "@xyflow/react";
+import { Handle, Position, type NodeProps, useReactFlow, useUpdateNodeInternals } from "@xyflow/react";
 import { NODE_TYPES_CONFIG, resolveSubtitle } from "./nodeTypes";
 import { Ban, Power, Loader2, CheckCircle2, XCircle, SkipForward, Clock, Eye } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -53,8 +53,16 @@ const statusLabel: Record<string, string> = {
   skipped: "Skipped",
 };
 
+const isStopOnFailureDisabled = (value: unknown) => {
+  if (typeof value === "string") {
+    return value.toLowerCase() === "false";
+  }
+  return value === false;
+};
+
 const BrowserNode = ({ id, data, selected }: NodeProps) => {
   const { setNodes } = useReactFlow();
+  const updateNodeInternals = useUpdateNodeInternals();
   const nodeData = data as Record<string, unknown>;
   const nodeType = (nodeData.nodeType as string) || "navigate";
   const config = NODE_TYPES_CONFIG.find((n) => n.type === nodeType);
@@ -157,6 +165,10 @@ const BrowserNode = ({ id, data, selected }: NodeProps) => {
       }
     };
   }, []);
+
+  useEffect(() => {
+    updateNodeInternals(id);
+  }, [id, nodeData.stopOnFailure, nodeType, updateNodeInternals]);
 
   if (!config) return null;
 
@@ -274,12 +286,37 @@ const BrowserNode = ({ id, data, selected }: NodeProps) => {
       )}
 
       {!(["foreach", "while", "for"].includes(nodeType)) && (
-        <Handle
-          type="source"
-          position={Position.Bottom}
-          className="!bg-primary !border-background !w-4 !h-4 !-bottom-2"
-          isConnectable
-        />
+        <>
+          {isStopOnFailureDisabled(nodeData.stopOnFailure) ? (
+            <>
+              <Handle
+                type="source"
+                position={Position.Bottom}
+                className="!bg-primary !border-background !w-4 !h-4 !-bottom-2"
+                style={{ left: "30%" }}
+                isConnectable
+              />
+              <Handle
+                type="source"
+                position={Position.Bottom}
+                id="error"
+                className="!bg-amber-500 !border-background !w-4 !h-4 !-bottom-2"
+                style={{ left: "70%" }}
+                isConnectable
+              />
+              <span className="absolute -bottom-4 left-[80%] -translate-x-1/2 text-[8px] font-mono text-amber-500 font-bold uppercase pointer-events-none">
+                Error
+              </span>
+            </>
+          ) : (
+            <Handle
+              type="source"
+              position={Position.Bottom}
+              className="!bg-primary !border-background !w-4 !h-4 !-bottom-2"
+              isConnectable
+            />
+          )}
+        </>
       )}
 
       {["foreach", "while", "for"].includes(nodeType) && (
