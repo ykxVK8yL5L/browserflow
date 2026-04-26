@@ -1,0 +1,290 @@
+{
+  "name": "For循环示例",
+  "description": "For循环示例",
+  "nodes": [
+    {
+      "id": "node_1777186789694",
+      "type": "for",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "For",
+        "nodeType": "for",
+        "params": {
+          "variableName": "i",
+          "start": 0,
+          "end": 10,
+          "step": 1,
+          "inclusive": "false",
+          "maxIterations": 1000
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "variableName": "i",
+        "start": 0,
+        "end": 10,
+        "step": 1,
+        "inclusive": "false",
+        "maxIterations": 1000,
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 0
+      },
+      "position": {
+        "x": 832.9773346974804,
+        "y": 242.25652781404
+      },
+      "measured": {
+        "width": 260,
+        "height": 108
+      },
+      "selected": false
+    },
+    {
+      "id": "node_1777186789695",
+      "type": "if",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "If Condition",
+        "nodeType": "if",
+        "params": {
+          "leftValue": "${i}",
+          "leftValueType": "number",
+          "operator": ">=",
+          "value": "6",
+          "valueType": "auto",
+          "condition": "",
+          "onError": "fail"
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "leftValue": "${i}",
+        "leftValueType": "number",
+        "operator": ">=",
+        "value": "6",
+        "valueType": "auto",
+        "condition": "",
+        "onError": "fail",
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 0
+      },
+      "position": {
+        "x": 783.7038749555701,
+        "y": 420.74680433148137
+      },
+      "measured": {
+        "width": 213,
+        "height": 116
+      },
+      "selected": false
+    },
+    {
+      "id": "node_1777186789697",
+      "type": "break",
+      "nodeType": null,
+      "data": {
+        "label": "Break",
+        "nodeType": "break",
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "params": {},
+        "inputs": {},
+        "stopOnFailure": true
+      },
+      "position": {
+        "x": 488.3593261361634,
+        "y": 671.4898040847978
+      },
+      "measured": {
+        "width": 168,
+        "height": 94
+      },
+      "selected": false
+    },
+    {
+      "id": "node_1777186789698",
+      "type": "continue",
+      "nodeType": null,
+      "data": {
+        "label": "Continue",
+        "nodeType": "continue",
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "params": {},
+        "inputs": {},
+        "stopOnFailure": true
+      },
+      "position": {
+        "x": 860.726586077368,
+        "y": 790.5360436088388
+      },
+      "measured": {
+        "width": 204,
+        "height": 94
+      },
+      "selected": false
+    },
+    {
+      "id": "node_1777186789699",
+      "type": "stop",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "Stop",
+        "nodeType": "stop",
+        "params": {
+          "stopType": "success",
+          "errorMessage": "${test}"
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "stopType": "success",
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 0,
+        "errorMessage": "${test}"
+      },
+      "position": {
+        "x": 1110.574396457002,
+        "y": 434.90573257397523
+      },
+      "measured": {
+        "width": 150,
+        "height": 97
+      },
+      "selected": false
+    },
+    {
+      "id": "node_1777186789700",
+      "type": "set",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "Set",
+        "nodeType": "set",
+        "params": {
+          "variableName": "test",
+          "operation": "set",
+          "valueType": "number",
+          "value": "1"
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "outputType": "object",
+        "variableName": "test",
+        "operation": "set",
+        "valueType": "number",
+        "value": "1",
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 0
+      },
+      "position": {
+        "x": 857.1904912676503,
+        "y": 82.57562970026902
+      },
+      "measured": {
+        "width": 200,
+        "height": 108
+      },
+      "selected": false
+    },
+    {
+      "id": "node_1777186789701",
+      "type": "set",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "Set",
+        "nodeType": "set",
+        "params": {
+          "variableName": "test",
+          "operation": "set",
+          "valueType": "number",
+          "value": "${test}+1"
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "outputType": "object",
+        "variableName": "test",
+        "operation": "set",
+        "valueType": "number",
+        "value": "${test}+1",
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 0
+      },
+      "position": {
+        "x": 812.3977504590983,
+        "y": 625.1721258733301
+      },
+      "measured": {
+        "width": 213,
+        "height": 108
+      },
+      "selected": false
+    }
+  ],
+  "edges": [
+    {
+      "id": "xy-edge__node_1777186789694body-node_1777186789695",
+      "source": "node_1777186789694",
+      "target": "node_1777186789695",
+      "sourceHandle": "body",
+      "animated": false,
+      "selected": false
+    },
+    {
+      "id": "xy-edge__node_1777186789695true-node_1777186789697",
+      "source": "node_1777186789695",
+      "target": "node_1777186789697",
+      "sourceHandle": "true",
+      "animated": false,
+      "selected": false
+    },
+    {
+      "id": "xy-edge__node_1777186789694done-node_1777186789699",
+      "source": "node_1777186789694",
+      "target": "node_1777186789699",
+      "sourceHandle": "done",
+      "animated": false,
+      "selected": false
+    },
+    {
+      "id": "xy-edge__node_1777186789700-node_1777186789694",
+      "source": "node_1777186789700",
+      "target": "node_1777186789694",
+      "animated": false,
+      "selected": false
+    },
+    {
+      "id": "xy-edge__node_1777186789695false-node_1777186789701",
+      "source": "node_1777186789695",
+      "target": "node_1777186789701",
+      "sourceHandle": "false",
+      "animated": false,
+      "selected": false
+    },
+    {
+      "id": "xy-edge__node_1777186789701-node_1777186789698",
+      "source": "node_1777186789701",
+      "target": "node_1777186789698",
+      "animated": false,
+      "selected": false
+    }
+  ],
+  "groups": [],
+  "exportedAt": "2026-04-26T07:06:38.423Z"
+}

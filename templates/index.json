@@ -28,6 +28,16 @@
       "sort_order": 10,
       "path": "code-snippets/全局字符串随机生成方法.json"
     },
+     {
+      "id": "global-for-loop",
+      "category": "code-snippets",
+      "name": "For循环示例",
+      "description": "For循环示例",
+      "tags": ["循环", "片段"],
+      "author": "官方",
+      "sort_order": 10,
+      "path": "code-snippets/For循环示例.json"
+    },
     {
       "id": "slider-captcha",
       "category": "code-snippets",
