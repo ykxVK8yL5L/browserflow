@@ -720,9 +720,42 @@ const FlowCanvas = ({
     });
     const onFlowNodesChange = useCallback(
         (changes: NodeChange<Node>[]) => {
+            const removedGroupIds = changes
+                .filter((change): change is Extract<NodeChange<Node>, { type: "remove" }> => change.type === "remove")
+                .map((change) => change.id)
+                .filter((groupId) => groups.some((group) => group.id === groupId));
+
+            if (removedGroupIds.length > 0) {
+                const descendantGroupIds = new Set<string>();
+                const removedNodeIds = new Set<string>();
+
+                removedGroupIds.forEach((groupId) => {
+                    descendantGroupIds.add(groupId);
+                    getGroupDescendantGroupIds(groupId, groups).forEach((descendantGroupId) => {
+                        descendantGroupIds.add(descendantGroupId);
+                    });
+                    getGroupNodeIdsDeep(groupId, groups).forEach((nodeId) => {
+                        removedNodeIds.add(nodeId);
+                    });
+                });
+
+                if (removedNodeIds.size > 0) {
+                    setNodes((currentNodes) => currentNodes.filter((node) => !removedNodeIds.has(node.id)));
+                    setEdges((currentEdges) => currentEdges.filter((edge) => !removedNodeIds.has(edge.source) && !removedNodeIds.has(edge.target)));
+                }
+
+                setGroups((currentGroups) => currentGroups.filter((group) => !descendantGroupIds.has(group.id)));
+                setSelectedGroupId((currentGroupId) => (currentGroupId && descendantGroupIds.has(currentGroupId) ? null : currentGroupId));
+                setSelectedGroupIds((currentGroupIds) => currentGroupIds.filter((groupId) => !descendantGroupIds.has(groupId)));
+                setSelectedNodes((currentNodeIds) => currentNodeIds.filter((nodeId) => !removedNodeIds.has(nodeId)));
+                setSelectedEdges((currentEdgeIds) => currentEdgeIds.filter((edgeId) => !changes.some((change) => change.type === "remove" && change.id === edgeId)));
+                setGroupDraftTitle("");
+                setIsRenamingGroup(false);
+            }
+
             const filteredChanges = changes.filter((change) => {
                 if (change.type !== "position" && change.type !== "dimensions") {
-                    return true;
+                    return !("id" in change && groups.some((group) => group.id === change.id));
                 }
 
                 return !groups.some((group) => group.id === change.id);
@@ -760,7 +793,7 @@ const FlowCanvas = ({
                 return applyNodeChanges(normalizedChanges, currentNodes);
             });
         },
-        [groups, setNodes],
+        [groups, setEdges, setNodes],
     );
     const contentNodes = useMemo(() => stripDerivedGroupNodes(nodes), [nodes]);
     const groupNodeIdsMap = useMemo(
