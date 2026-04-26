@@ -1,12 +1,15 @@
-"""模板配置与模板索引/内容代理接口。"""
+"""模板配置、远程模板代理与用户本地模板接口。"""
 
 from __future__ import annotations
 
 import json
 from datetime import datetime
+from pathlib import Path
+import re
 from typing import Any, Dict, List, Optional
 from urllib.parse import quote, urljoin, urlparse, urlsplit, urlunsplit
 from urllib.request import Request, urlopen
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
@@ -23,6 +26,8 @@ DEFAULT_TEMPLATE_INDEX_URL = (
 )
 FETCH_TIMEOUT_SECONDS = 10
 ALLOWED_SCHEMES = {"http", "https"}
+LOCAL_TEMPLATE_BASE_DIR = Path(__file__).resolve().parents[1] / "data" / "templates"
+LOCAL_TEMPLATE_CATEGORY = "local"
 
 
 def ensure_admin(user: UserModel) -> UserModel:
@@ -77,6 +82,33 @@ class TemplateFlowResponse(BaseModel):
     author: str = "官方"
     nodes: List[Dict[str, Any]]
     edges: List[Dict[str, Any]]
+    groups: List[Dict[str, Any]] = []
+
+
+class LocalTemplateIndexItemResponse(BaseModel):
+    id: str
+    name: str
+    description: str = ""
+    category: str = LOCAL_TEMPLATE_CATEGORY
+    tags: List[str] = []
+    author: str = "我的模板"
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
+class LocalTemplateIndexResponse(BaseModel):
+    items: List[LocalTemplateIndexItemResponse]
+
+
+class LocalTemplateSaveRequest(BaseModel):
+    id: Optional[str] = Field(default=None, min_length=1, max_length=128)
+    name: str = Field(..., min_length=1, max_length=128)
+    description: str = Field(default="", max_length=2000)
+    category: str = Field(default=LOCAL_TEMPLATE_CATEGORY, max_length=64)
+    tags: List[str] = []
+    nodes: List[Dict[str, Any]]
+    edges: List[Dict[str, Any]]
+    groups: List[Dict[str, Any]] = []
 
 
 def normalize_index_url(value: str | None) -> str:
@@ -88,6 +120,77 @@ def normalize_index_url(value: str | None) -> str:
             detail="模板索引地址必须是有效的 http/https URL",
         )
     return text
+
+
+def slugify_template_id(value: str) -> str:
+    text = re.sub(r"[^a-zA-Z0-9_-]+", "-", str(value or "").strip()).strip("-_")
+    return text[:128] if text else ""
+
+
+def get_user_template_dir(user_id: str) -> Path:
+    target_dir = LOCAL_TEMPLATE_BASE_DIR / str(user_id)
+    target_dir.mkdir(parents=True, exist_ok=True)
+    return target_dir
+
+
+def get_user_template_path(user_id: str, template_id: str) -> Path:
+    safe_id = slugify_template_id(template_id)
+    if not safe_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="模板 ID 无效",
+        )
+
+    user_dir = get_user_template_dir(user_id).resolve()
+    file_path = (user_dir / f"{safe_id}.json").resolve()
+    if file_path.parent != user_dir:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="模板路径无效",
+        )
+    return file_path
+
+
+def normalize_local_template_payload(
+    template_id: str, payload: Any
+) -> TemplateFlowResponse:
+    normalized = normalize_template_flow(template_id, payload)
+    normalized.author = str(payload.get("author") or "我的模板").strip() or "我的模板"
+    normalized.groups = (
+        payload.get("groups") if isinstance(payload.get("groups"), list) else []
+    )
+    return normalized
+
+
+def normalize_local_template_item(
+    template_id: str, payload: Any, file_path: Path
+) -> LocalTemplateIndexItemResponse:
+    if not isinstance(payload, dict):
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="本地模板格式错误",
+        )
+
+    created_at = payload.get("created_at")
+    updated_at = payload.get("updated_at")
+    if not created_at:
+        created_at = datetime.fromtimestamp(file_path.stat().st_ctime).isoformat()
+    if not updated_at:
+        updated_at = datetime.fromtimestamp(file_path.stat().st_mtime).isoformat()
+
+    return LocalTemplateIndexItemResponse(
+        id=template_id,
+        name=str(payload.get("name") or template_id).strip() or template_id,
+        description=str(payload.get("description") or "").strip(),
+        category=str(payload.get("category") or LOCAL_TEMPLATE_CATEGORY).strip()
+        or LOCAL_TEMPLATE_CATEGORY,
+        tags=[
+            str(tag).strip() for tag in (payload.get("tags") or []) if str(tag).strip()
+        ],
+        author=str(payload.get("author") or "我的模板").strip() or "我的模板",
+        created_at=str(created_at) if created_at else None,
+        updated_at=str(updated_at) if updated_at else None,
+    )
 
 
 def fetch_remote_json(url: str) -> Any:
@@ -247,7 +350,32 @@ def normalize_template_flow(template_id: str, payload: Any) -> TemplateFlowRespo
         author=str(payload.get("author") or "官方").strip() or "官方",
         nodes=nodes,
         edges=edges,
+        groups=payload.get("groups") if isinstance(payload.get("groups"), list) else [],
     )
+
+
+def load_local_template(user_id: str, template_id: str) -> tuple[Path, Dict[str, Any]]:
+    template_path = get_user_template_path(user_id, template_id)
+    if not template_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="模板不存在",
+        )
+
+    try:
+        payload = json.loads(template_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"本地模板 JSON 解析失败: {exc}",
+        ) from exc
+
+    if not isinstance(payload, dict):
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="本地模板格式错误",
+        )
+    return template_path, payload
 
 
 @router.get("/settings", response_model=TemplateSettingsResponse)
@@ -347,3 +475,91 @@ async def get_template_item(
     if not normalized.author:
         normalized.author = item.author
     return normalized
+
+
+@router.get("/local/index", response_model=LocalTemplateIndexResponse)
+async def get_local_template_index(
+    user: UserModel = Depends(get_current_user),
+):
+    user_dir = get_user_template_dir(user.id)
+    items: List[LocalTemplateIndexItemResponse] = []
+
+    for file_path in sorted(user_dir.glob("*.json")):
+        try:
+            payload = json.loads(file_path.read_text(encoding="utf-8"))
+            template_id = (
+                str(payload.get("id") or file_path.stem).strip() or file_path.stem
+            )
+            items.append(normalize_local_template_item(template_id, payload, file_path))
+        except Exception:
+            continue
+
+    items.sort(
+        key=lambda item: (
+            item.category,
+            -(
+                datetime.fromisoformat(item.updated_at).timestamp()
+                if item.updated_at
+                else 0
+            ),
+            item.name.lower(),
+        )
+    )
+    return LocalTemplateIndexResponse(items=items)
+
+
+@router.get("/local/item", response_model=TemplateFlowResponse)
+async def get_local_template_item(
+    template_id: str = Query(..., min_length=1, max_length=128),
+    user: UserModel = Depends(get_current_user),
+):
+    _, payload = load_local_template(user.id, template_id)
+    return normalize_local_template_payload(template_id, payload)
+
+
+@router.post("/local/item", response_model=TemplateFlowResponse)
+async def save_local_template_item(
+    data: LocalTemplateSaveRequest,
+    user: UserModel = Depends(get_current_user),
+):
+    template_id = slugify_template_id(data.id or data.name) or slugify_template_id(
+        f"template-{uuid4().hex}"
+    )
+    template_path = get_user_template_path(user.id, template_id)
+
+    now = datetime.utcnow().isoformat()
+    existing_created_at: Optional[str] = None
+    if template_path.exists():
+        _, existing_payload = load_local_template(user.id, template_id)
+        existing_created_at = (
+            str(existing_payload.get("created_at") or "").strip() or None
+        )
+
+    payload = {
+        "id": template_id,
+        "name": data.name.strip(),
+        "description": data.description.strip(),
+        "category": data.category.strip() or LOCAL_TEMPLATE_CATEGORY,
+        "tags": [str(tag).strip() for tag in data.tags if str(tag).strip()],
+        "author": user.username or "我的模板",
+        "nodes": data.nodes,
+        "edges": data.edges,
+        "groups": data.groups,
+        "created_at": existing_created_at or now,
+        "updated_at": now,
+    }
+
+    template_path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    return normalize_local_template_payload(template_id, payload)
+
+
+@router.delete("/local/item", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_local_template_item(
+    template_id: str = Query(..., min_length=1, max_length=128),
+    user: UserModel = Depends(get_current_user),
+):
+    template_path, _ = load_local_template(user.id, template_id)
+    template_path.unlink(missing_ok=True)

@@ -58,6 +58,8 @@ export interface NodeExecutionRecord {
 export interface FlowSnapshot {
   nodes: Array<Record<string, unknown>>;
   edges: Array<Record<string, unknown>>;
+  groups?: Array<Record<string, unknown>>;
+  options?: Record<string, unknown>;
 }
 
 export interface ExecutionRecord {

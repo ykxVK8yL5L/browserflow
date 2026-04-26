@@ -33,14 +33,15 @@ def ensure_admin(user: UserModel) -> UserModel:
     return user
 
 
-BACKUP_VERSION = 3
-SUPPORTED_BACKUP_VERSIONS = {1, 2, 3}
+BACKUP_VERSION = 4
+SUPPORTED_BACKUP_VERSIONS = {1, 2, 3, 4}
 DEFAULT_BACKUP_SCOPE = "current_user"
 BACKUP_DIRS = [
     "data/identities",
     "data/files",
     "data/screenshots",
     "data/credentials",
+    "data/templates",
 ]
 SYSTEM_BACKUP_DIRS = ["data"]
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -67,6 +68,7 @@ PUBLIC_FILE_ROOT_MAP = {
     "data/files": "files",
     "data/screenshots": "screenshots",
     "data/credentials": "credentialsFiles",
+    "data/templates": "templates",
 }
 PUBLIC_FILE_ROOT_MAP_REVERSED = {
     public_name: root for root, public_name in PUBLIC_FILE_ROOT_MAP.items()
@@ -171,6 +173,9 @@ def _should_include_file_for_user(
             return parts[1] in context["execution_ids"]
         top_level = relative_path.split(os.sep, 1)[0]
         return top_level in context["execution_ids"]
+    if root == "data/templates":
+        top_level = relative_path.split(os.sep, 1)[0]
+        return top_level == user.id
     top_level = relative_path.split(os.sep, 1)[0]
     return top_level == user.id
 

@@ -71,6 +71,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Pagination,
   PaginationContent,
@@ -80,7 +81,16 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import type { RunSettings } from "@/lib/flowApi";
-import { getTemplateIndex, getTemplateItem, type TemplateIndexItem } from "@/lib/templateApi";
+import {
+  deleteLocalTemplate,
+  getLocalTemplateIndex,
+  getLocalTemplateItem,
+  getTemplateIndex,
+  getTemplateItem,
+  saveLocalTemplate,
+  type LocalTemplateIndexItem,
+  type TemplateIndexItem,
+} from "@/lib/templateApi";
 import type { WaitForUserRequest } from "@/lib/websocketEngine";
 import type { FlowGroup } from "@/lib/flowGroups";
 import { createGroup, remapImportedGroups } from "@/lib/flowGroups";
@@ -306,11 +316,26 @@ const Index = () => {
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const [templateLoading, setTemplateLoading] = useState(false);
   const [templateImportingId, setTemplateImportingId] = useState<string | null>(null);
+  const [templateTab, setTemplateTab] = useState<"remote" | "local">("remote");
   const [templateItems, setTemplateItems] = useState<TemplateIndexItem[]>([]);
+  const [localTemplateItems, setLocalTemplateItems] = useState<LocalTemplateIndexItem[]>([]);
   const [templateCategories, setTemplateCategories] = useState<Record<string, { label: string; description: string }>>({});
   const [templateCategoryFilter, setTemplateCategoryFilter] = useState<string>("all");
   const [templateKeyword, setTemplateKeyword] = useState("");
   const [templatePage, setTemplatePage] = useState(1);
+  const [saveTemplateDialogOpen, setSaveTemplateDialogOpen] = useState(false);
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [pendingTemplateGroup, setPendingTemplateGroup] = useState<{
+    group: FlowGroup;
+    nodes: Node[];
+    edges: Edge[];
+    groups: FlowGroup[];
+  } | null>(null);
+  const [templateForm, setTemplateForm] = useState({
+    name: "",
+    description: "",
+    tags: "",
+  });
   const [waitForUserDialog, setWaitForUserDialog] = useState<WaitForUserDialogState | null>(null);
   const [waitForUserValue, setWaitForUserValue] = useState("");
   const [runSettings, setRunSettings] = useState<Required<RunSettings>>(DEFAULT_RUN_SETTINGS);
@@ -539,18 +564,41 @@ const Index = () => {
     }
   }, []);
 
+  const loadLocalTemplateIndex = useCallback(async () => {
+    setTemplateLoading(true);
+    try {
+      const data = await getLocalTemplateIndex();
+      setLocalTemplateItems(data.items || []);
+      setTemplatePage(1);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "加载本地模板列表失败");
+      throw error;
+    } finally {
+      setTemplateLoading(false);
+    }
+  }, []);
+
   const handleOpenTemplateDialog = useCallback(async () => {
     setTemplateDialogOpen(true);
-    if (templateItems.length > 0) {
+    if (templateTab === "remote" && templateItems.length > 0) {
       return;
     }
-    await loadTemplateIndex();
-  }, [loadTemplateIndex, templateItems.length]);
+    if (templateTab === "local" && localTemplateItems.length > 0) {
+      return;
+    }
+    if (templateTab === "remote") {
+      await loadTemplateIndex();
+      return;
+    }
+    await loadLocalTemplateIndex();
+  }, [loadLocalTemplateIndex, loadTemplateIndex, localTemplateItems.length, templateItems.length, templateTab]);
 
-  const handleImportTemplate = useCallback(async (templateId: string) => {
+  const handleImportTemplate = useCallback(async (templateId: string, source: "remote" | "local") => {
     setTemplateImportingId(templateId);
     try {
-      const template = await getTemplateItem(templateId);
+      const template = source === "local"
+        ? await getLocalTemplateItem(templateId)
+        : await getTemplateItem(templateId);
       const cleanNodes = stripExecData(template.nodes as Node[]);
       const cleanEdges = (template.edges || []) as Edge[];
       const merged = appendImportedFlow(
@@ -559,7 +607,7 @@ const Index = () => {
         groupsRef.current,
         cleanNodes,
         cleanEdges,
-        (template.groups || []) as FlowGroup[],
+        (template.groups || []) as unknown as FlowGroup[],
         template.name,
       );
       resetFnRef.current?.(merged.nodes, merged.edges, merged.groups);
@@ -589,12 +637,96 @@ const Index = () => {
     });
   }, [templateCategoryFilter, templateItems, templateKeyword]);
 
-  const templatePageCount = Math.max(1, Math.ceil(filteredTemplateItems.length / TEMPLATE_PAGE_SIZE));
+  const filteredLocalTemplateItems = useMemo(() => {
+    const keyword = templateKeyword.trim().toLowerCase();
+    return localTemplateItems.filter((item) => {
+      return (
+        !keyword ||
+        item.name.toLowerCase().includes(keyword) ||
+        item.description.toLowerCase().includes(keyword) ||
+        item.tags.some((tag) => tag.toLowerCase().includes(keyword))
+      );
+    });
+  }, [localTemplateItems, templateKeyword]);
+
+  const activeTemplateItemsCount = templateTab === "remote" ? filteredTemplateItems.length : filteredLocalTemplateItems.length;
+  const activeTemplateTotalCount = templateTab === "remote" ? templateItems.length : localTemplateItems.length;
+  const templatePageCount = Math.max(1, Math.ceil(activeTemplateItemsCount / TEMPLATE_PAGE_SIZE));
   const pagedTemplateItems = useMemo(() => {
     const safePage = Math.min(templatePage, templatePageCount);
     const start = (safePage - 1) * TEMPLATE_PAGE_SIZE;
-    return filteredTemplateItems.slice(start, start + TEMPLATE_PAGE_SIZE);
-  }, [filteredTemplateItems, templatePage, templatePageCount]);
+    return (templateTab === "remote" ? filteredTemplateItems : filteredLocalTemplateItems).slice(start, start + TEMPLATE_PAGE_SIZE);
+  }, [filteredLocalTemplateItems, filteredTemplateItems, templatePage, templatePageCount, templateTab]);
+
+  const handlePrepareSaveTemplate = useCallback((payload: {
+    group: FlowGroup;
+    nodes: Node[];
+    edges: Edge[];
+    groups: FlowGroup[];
+  }) => {
+    setPendingTemplateGroup(payload);
+    setTemplateForm({
+      name: payload.group.title || "未命名模板",
+      description: payload.group.description || "",
+      tags: "",
+    });
+    setSaveTemplateDialogOpen(true);
+  }, []);
+
+  const handleSubmitSaveTemplate = useCallback(async () => {
+    if (!pendingTemplateGroup) return;
+    const name = templateForm.name.trim();
+    if (!name) {
+      toast.error("请输入模板名称");
+      return;
+    }
+
+    setSavingTemplate(true);
+    try {
+      await saveLocalTemplate({
+        name,
+        description: templateForm.description.trim(),
+        tags: templateForm.tags.split(",").map((tag) => tag.trim()).filter(Boolean),
+        nodes: pendingTemplateGroup.nodes as unknown as Record<string, unknown>[],
+        edges: pendingTemplateGroup.edges as unknown as Record<string, unknown>[],
+        groups: pendingTemplateGroup.groups as unknown as Record<string, unknown>[],
+      });
+      toast.success("模板已保存");
+      setSaveTemplateDialogOpen(false);
+      setPendingTemplateGroup(null);
+      setTemplateTab("local");
+      await loadLocalTemplateIndex();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "保存模板失败");
+    } finally {
+      setSavingTemplate(false);
+    }
+  }, [loadLocalTemplateIndex, pendingTemplateGroup, templateForm.description, templateForm.name, templateForm.tags]);
+
+  const [deletingTemplateId, setDeletingTemplateId] = useState<string | null>(null);
+
+  const handleDeleteLocalTemplate = useCallback(async (templateId: string) => {
+    setDeletingTemplateId(templateId);
+    try {
+      await deleteLocalTemplate(templateId);
+      toast.success("模板已删除");
+      await loadLocalTemplateIndex();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "删除模板失败");
+    } finally {
+      setDeletingTemplateId(null);
+    }
+  }, [loadLocalTemplateIndex]);
+
+  useEffect(() => {
+    if (!templateDialogOpen) return;
+    if (templateTab === "remote" && templateItems.length === 0) {
+      void loadTemplateIndex();
+    }
+    if (templateTab === "local" && localTemplateItems.length === 0) {
+      void loadLocalTemplateIndex();
+    }
+  }, [loadLocalTemplateIndex, loadTemplateIndex, localTemplateItems.length, templateDialogOpen, templateItems.length, templateTab]);
 
   useEffect(() => {
     setTemplatePage(1);
@@ -1165,69 +1297,135 @@ const Index = () => {
           <div className="min-h-0 flex-1 flex flex-col gap-4 overflow-hidden">
             <div className="flex items-center justify-between gap-3">
               <div className="text-xs font-mono text-muted-foreground">
-                共 {filteredTemplateItems.length} / {templateItems.length} 个模板
+                共 {activeTemplateItemsCount} / {activeTemplateTotalCount} 个模板
               </div>
-              <Button variant="outline" size="sm" onClick={() => void loadTemplateIndex()} disabled={templateLoading}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void (templateTab === "remote" ? loadTemplateIndex() : loadLocalTemplateIndex())}
+                disabled={templateLoading}
+              >
                 刷新
               </Button>
             </div>
 
-            <div className="grid gap-3 md:grid-cols-[180px_minmax(0,1fr)]">
-              <Select value={templateCategoryFilter} onValueChange={setTemplateCategoryFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="选择分类" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">全部分类</SelectItem>
-                  {Object.entries(templateCategories).map(([key, category]) => (
-                    <SelectItem key={key} value={key}>
-                      {category.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <Tabs value={templateTab} onValueChange={(value) => setTemplateTab(value as "remote" | "local")} className="min-h-0 p-1 flex flex-1 flex-col overflow-hidden">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="remote" className="font-mono text-xs">远程模板</TabsTrigger>
+                <TabsTrigger value="local" className="font-mono text-xs">本地模板</TabsTrigger>
+              </TabsList>
 
-              <Input
-                value={templateKeyword}
-                onChange={(e) => setTemplateKeyword(e.target.value)}
-                placeholder="搜索模板名称、描述或标签"
-                className="font-mono"
-              />
-            </div>
-
-            <ScrollArea className="min-h-0 flex-1 h-full pr-3">
-              <div className="space-y-4 pb-2">
-                {templateLoading ? (
-                  <div className="text-sm font-mono text-muted-foreground py-8 text-center">正在加载模板...</div>
-                ) : filteredTemplateItems.length === 0 ? (
-                  <div className="text-sm font-mono text-muted-foreground py-8 text-center">暂无可用模板</div>
+              <div className="grid gap-3 md:grid-cols-[180px_minmax(0,1fr)]">
+                {templateTab === "remote" ? (
+                  <Select value={templateCategoryFilter} onValueChange={setTemplateCategoryFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="选择分类" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">全部分类</SelectItem>
+                      {Object.entries(templateCategories).map(([key, category]) => (
+                        <SelectItem key={key} value={key}>
+                          {category.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 ) : (
-                  Object.entries(
-                    pagedTemplateItems.reduce<Record<string, TemplateIndexItem[]>>((acc, item) => {
-                      acc[item.category] = acc[item.category] || [];
-                      acc[item.category].push(item);
-                      return acc;
-                    }, {}),
-                  ).map(([categoryKey, items]) => {
-                    const category = templateCategories[categoryKey];
-                    return (
-                      <div key={categoryKey} className="space-y-2">
-                        <div>
-                          <div className="text-sm font-mono font-semibold text-foreground">
-                            {category?.label || categoryKey}
+                  <div className="text-xs font-mono text-muted-foreground flex items-center px-1">仅显示当前用户保存的模板</div>
+                )}
+
+                <Input
+                  value={templateKeyword}
+                  onChange={(e) => setTemplateKeyword(e.target.value)}
+                  placeholder="搜索模板名称、描述或标签"
+                  className="font-mono"
+                />
+              </div>
+
+              <TabsContent value="remote" className="min-h-0 flex-1 mt-4 overflow-hidden data-[state=inactive]:hidden">
+                <ScrollArea className="min-h-0 flex-1 h-full pr-3">
+                  <div className="space-y-4 pb-2">
+                    {templateLoading ? (
+                      <div className="text-sm font-mono text-muted-foreground py-8 text-center">正在加载模板...</div>
+                    ) : filteredTemplateItems.length === 0 ? (
+                      <div className="text-sm font-mono text-muted-foreground py-8 text-center">暂无可用模板</div>
+                    ) : (
+                      Object.entries(
+                        pagedTemplateItems.reduce<Record<string, TemplateIndexItem[]>>((acc, item) => {
+                          const remoteItem = item as TemplateIndexItem;
+                          acc[remoteItem.category] = acc[remoteItem.category] || [];
+                          acc[remoteItem.category].push(remoteItem);
+                          return acc;
+                        }, {}),
+                      ).map(([categoryKey, items]) => {
+                        const category = templateCategories[categoryKey];
+                        return (
+                          <div key={categoryKey} className="space-y-2">
+                            <div>
+                              <div className="text-sm font-mono font-semibold text-foreground">
+                                {category?.label || categoryKey}
+                              </div>
+                              {category?.description ? (
+                                <div className="text-xs font-mono text-muted-foreground">{category.description}</div>
+                              ) : null}
+                            </div>
+                            <div className="grid gap-3 md:grid-cols-2">
+                              {items.map((item) => (
+                                <div key={item.id} className="rounded-lg border border-border p-4 space-y-3">
+                                  <div className="space-y-1">
+                                    <div className="text-sm font-mono font-semibold text-foreground">{item.name}</div>
+                                    <div className="text-xs text-muted-foreground">{item.description || "无描述"}</div>
+                                    <div className="text-[11px] font-mono text-muted-foreground">
+                                      作者：{item.author || "官方"}
+                                    </div>
+                                  </div>
+                                  {item.tags.length > 0 ? (
+                                    <div className="flex flex-wrap gap-2">
+                                      {item.tags.map((tag) => (
+                                        <Badge key={`${item.id}-${tag}`} variant="secondary" className="font-mono">
+                                          {tag}
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  ) : null}
+                                  <div className="flex justify-end">
+                                    <Button
+                                      size="sm"
+                                      onClick={() => void handleImportTemplate(item.id, "remote")}
+                                      disabled={templateImportingId === item.id}
+                                    >
+                                      {templateImportingId === item.id ? "导入中..." : "导入模板"}
+                                    </Button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                          {category?.description ? (
-                            <div className="text-xs font-mono text-muted-foreground">{category.description}</div>
-                          ) : null}
-                        </div>
-                        <div className="grid gap-3 md:grid-cols-2">
-                          {items.map((item) => (
+                        );
+                      })
+                    )}
+                  </div>
+                </ScrollArea>
+              </TabsContent>
+
+              <TabsContent value="local" className="min-h-0 flex-1 mt-4 overflow-hidden data-[state=inactive]:hidden">
+                <ScrollArea className="min-h-0 flex-1 h-full pr-3">
+                  <div className="space-y-4 pb-2">
+                    {templateLoading ? (
+                      <div className="text-sm font-mono text-muted-foreground py-8 text-center">正在加载模板...</div>
+                    ) : filteredLocalTemplateItems.length === 0 ? (
+                      <div className="text-sm font-mono text-muted-foreground py-8 text-center">你还没有保存过本地模板</div>
+                    ) : (
+                      <div className="grid gap-3 md:grid-cols-2">
+                        {pagedTemplateItems.map((rawItem) => {
+                          const item = rawItem as LocalTemplateIndexItem;
+                          return (
                             <div key={item.id} className="rounded-lg border border-border p-4 space-y-3">
                               <div className="space-y-1">
                                 <div className="text-sm font-mono font-semibold text-foreground">{item.name}</div>
                                 <div className="text-xs text-muted-foreground">{item.description || "无描述"}</div>
                                 <div className="text-[11px] font-mono text-muted-foreground">
-                                  作者：{item.author || "官方"}
+                                  更新时间：{item.updated_at ? new Date(item.updated_at).toLocaleString("zh-CN", { hour12: false }) : "未知"}
                                 </div>
                               </div>
                               {item.tags.length > 0 ? (
@@ -1239,26 +1437,34 @@ const Index = () => {
                                   ))}
                                 </div>
                               ) : null}
-                              <div className="flex justify-end">
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => void handleDeleteLocalTemplate(item.id)}
+                                  disabled={deletingTemplateId === item.id || templateImportingId === item.id}
+                                >
+                                  {deletingTemplateId === item.id ? "删除中..." : "删除"}
+                                </Button>
                                 <Button
                                   size="sm"
-                                  onClick={() => void handleImportTemplate(item.id)}
-                                  disabled={templateImportingId === item.id}
+                                  onClick={() => void handleImportTemplate(item.id, "local")}
+                                  disabled={templateImportingId === item.id || deletingTemplateId === item.id}
                                 >
                                   {templateImportingId === item.id ? "导入中..." : "导入模板"}
                                 </Button>
                               </div>
                             </div>
-                          ))}
-                        </div>
+                          );
+                        })}
                       </div>
-                    );
-                  })
-                )}
-              </div>
-            </ScrollArea>
+                    )}
+                  </div>
+                </ScrollArea>
+              </TabsContent>
+            </Tabs>
 
-            {filteredTemplateItems.length > 0 ? (
+            {activeTemplateItemsCount > 0 ? (
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="text-xs font-mono text-muted-foreground">
                   第 {templatePage} / {templatePageCount} 页
@@ -1522,9 +1728,62 @@ const Index = () => {
             onResetRef={(fn) => {
               resetFnRef.current = fn;
             }}
+            onSaveGroupAsTemplate={handlePrepareSaveTemplate}
           />
         </ReactFlowProvider>
       </div>
+
+      <Dialog open={saveTemplateDialogOpen} onOpenChange={setSaveTemplateDialogOpen}>
+        <DialogContent className="sm:max-w-[520px] bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="font-mono text-sm">保存为本地模板</DialogTitle>
+            <DialogDescription className="font-mono text-xs text-muted-foreground">
+              将当前分组及其子分组保存到你的个人模板目录。
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-2">
+            <div className="grid gap-2">
+              <Label className="text-xs font-mono">模板名称</Label>
+              <Input
+                value={templateForm.name}
+                onChange={(e) => setTemplateForm((prev) => ({ ...prev, name: e.target.value }))}
+                placeholder="输入模板名称"
+                className="font-mono"
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label className="text-xs font-mono">描述</Label>
+              <Textarea
+                value={templateForm.description}
+                onChange={(e) => setTemplateForm((prev) => ({ ...prev, description: e.target.value }))}
+                placeholder="模板用途说明"
+                className="font-mono min-h-[100px]"
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label className="text-xs font-mono">标签</Label>
+              <Input
+                value={templateForm.tags}
+                onChange={(e) => setTemplateForm((prev) => ({ ...prev, tags: e.target.value }))}
+                placeholder="使用英文逗号分隔，例如：登录,注册,抓取"
+                className="font-mono"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSaveTemplateDialogOpen(false)} disabled={savingTemplate}>
+              取消
+            </Button>
+            <Button onClick={() => void handleSubmitSaveTemplate()} disabled={savingTemplate}>
+              {savingTemplate ? "保存中..." : "保存模板"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <ExecutionPanel
         open={panelOpen}
@@ -1551,7 +1810,7 @@ const Index = () => {
               setHistorySnapshot({
                 nodes: stripExecData(snapshot.nodes as Node[]),
                 edges: snapshot.edges as Edge[],
-                groups: (snapshot.groups || []) as FlowGroup[],
+                groups: (snapshot.groups || []) as unknown as FlowGroup[],
               });
             } else {
               setHistorySnapshot(null);

@@ -375,7 +375,7 @@ type FlowGroupActionEventDetail = {
     button?: number;
     ctrlKey?: boolean;
     metaKey?: boolean;
-    action?: "select" | "toggleCollapse" | "ungroup" | "rename";
+    action?: "select" | "toggleCollapse" | "ungroup" | "rename" | "saveAsTemplate";
     groupId?: string;
     shiftKey?: boolean;
 };
@@ -682,6 +682,12 @@ interface FlowCanvasProps {
         ) => void,
     ) => void;
     onResetRef?: (fn: (nodes: Node[], edges: Edge[], groups: FlowGroup[]) => void) => void;
+    onSaveGroupAsTemplate?: (payload: {
+        group: FlowGroup;
+        nodes: Node[];
+        edges: Edge[];
+        groups: FlowGroup[];
+    }) => void;
 }
 
 const FlowCanvas = ({
@@ -696,6 +702,7 @@ const FlowCanvas = ({
     onPaneClick,
     onSetNodeExecStatusRef,
     onResetRef,
+    onSaveGroupAsTemplate,
 }: FlowCanvasProps) => {
     const isMobile = useIsMobile();
     const reactFlowWrapper = useRef<HTMLDivElement>(null);
@@ -1418,6 +1425,7 @@ const FlowCanvas = ({
 
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
+            console.log("Key down event:", event.key);
             if (readOnly) return;
 
             const target = event.target as HTMLElement;
@@ -1425,6 +1433,7 @@ const FlowCanvas = ({
             const isWithinCanvas = Boolean(reactFlowWrapper.current?.contains(target)) || target === document.body;
             if (!isWithinCanvas) return;
 
+            // React Flow already handles Backspace/Delete for deleting selected nodes/edges. This doesn't work well with our custom group nodes.
             if (event.key === "Backspace" || event.key === "Delete") {
                 if (!selectedGroupId && selectedNodes.length === 0 && selectedEdges.length === 0) return;
                 event.preventDefault();
@@ -1695,6 +1704,37 @@ const FlowCanvas = ({
                 setSelectedEdges([]);
                 setGroupDraftTitle(targetGroup.title || "");
                 setIsRenamingGroup(true);
+                return;
+            }
+
+            if (action === "saveAsTemplate") {
+                const targetGroup = groups.find((group) => group.id === groupId);
+                if (!targetGroup) return;
+
+                const groupNodeIds = new Set(getGroupNodeIdsDeep(groupId, groups));
+                const descendantGroupIds = new Set([groupId, ...getGroupDescendantGroupIds(groupId, groups)]);
+                const templateNodes = contentNodes
+                    .filter((node) => groupNodeIds.has(node.id))
+                    .map((node) => ({
+                        ...node,
+                        selected: false,
+                    }));
+                const templateEdges = edges
+                    .filter((edge) => groupNodeIds.has(edge.source) && groupNodeIds.has(edge.target))
+                    .map((edge) => ({
+                        ...edge,
+                        selected: false,
+                    }));
+                const templateGroups = groups
+                    .filter((group) => descendantGroupIds.has(group.id))
+                    .map((group) => ({ ...group }));
+
+                onSaveGroupAsTemplate?.({
+                    group: { ...targetGroup },
+                    nodes: templateNodes,
+                    edges: templateEdges,
+                    groups: templateGroups,
+                });
             }
         };
 
@@ -1702,7 +1742,7 @@ const FlowCanvas = ({
         return () => {
             window.removeEventListener("flow-group-action", handleGroupAction as EventListener);
         };
-    }, [groups, handleGroupSelect, handleToggleGroupCollapse, handleUngroup, readOnly]);
+    }, [contentNodes, edges, getGroupNodeIdSet, groups, handleGroupSelect, handleToggleGroupCollapse, handleUngroup, onSaveGroupAsTemplate, readOnly]);
 
     const handleDragGroup = useCallback(
         (groupId: string, nextClientX: number, nextClientY: number, prevClientX: number, prevClientY: number) => {
@@ -2228,6 +2268,7 @@ const FlowCanvas = ({
                     setIsRenamingGroup(false);
                     onPaneClick?.();
                 }}
+                onDelete={deleteSelected}
                 nodeTypes={nodeTypes}
                 fitView
                 className="bg-background"

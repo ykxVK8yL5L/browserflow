@@ -1,9 +1,9 @@
-import { ChevronDown, ChevronRight, FolderOpen, Pencil } from "lucide-react";
+import { ChevronDown, ChevronRight, FolderOpen, Pencil, Save } from "lucide-react";
 import { useMemo } from "react";
 import { type NodeProps } from "@xyflow/react";
 import GroupProxyHandles from "./GroupProxyHandles";
 
-type GroupActionType = "select" | "toggleCollapse" | "ungroup" | "rename";
+type GroupActionType = "select" | "toggleCollapse" | "ungroup" | "rename" | "saveAsTemplate";
 
 const dispatchGroupAction = (
     action: GroupActionType,
@@ -92,6 +92,12 @@ const MinimalGroupNode = ({ data, selected }: NodeProps) => {
         dispatchGroupAction("rename", nodeData.groupId, event);
     };
 
+    const handleSaveAsTemplate = (event: React.MouseEvent<HTMLElement>) => {
+        if (isConnecting) return;
+        stopEvent(event);
+        dispatchGroupAction("saveAsTemplate", nodeData.groupId, event);
+    };
+
     const handleSelectGroup = (event: React.MouseEvent<HTMLElement>) => {
         if (isConnecting || event.button !== 0) return;
         event.preventDefault();
@@ -170,6 +176,16 @@ const MinimalGroupNode = ({ data, selected }: NodeProps) => {
                             className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/10 bg-black/25 text-muted-foreground shadow-sm transition-colors hover:bg-black/35 hover:text-foreground"
                             onMouseDown={stopEvent}
                             onDoubleClick={stopEvent}
+                            onClick={handleSaveAsTemplate}
+                            title="保存为模板"
+                        >
+                            <Save size={12} />
+                        </button>
+                        <button
+                            type="button"
+                            className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/10 bg-black/25 text-muted-foreground shadow-sm transition-colors hover:bg-black/35 hover:text-foreground"
+                            onMouseDown={stopEvent}
+                            onDoubleClick={stopEvent}
                             onClick={handleRename}
                             title="重命名"
                         >
@@ -224,6 +240,16 @@ const MinimalGroupNode = ({ data, selected }: NodeProps) => {
                                 className="flex h-7 w-7 items-center justify-center rounded-lg border border-border/70 bg-background/90 text-muted-foreground shadow-sm transition-colors hover:text-foreground"
                                 onMouseDown={stopEvent}
                                 onDoubleClick={stopEvent}
+                                onClick={handleSaveAsTemplate}
+                                title="保存为模板"
+                            >
+                                <Save size={12} />
+                            </button>
+                            <button
+                                type="button"
+                                className="flex h-7 w-7 items-center justify-center rounded-lg border border-border/70 bg-background/90 text-muted-foreground shadow-sm transition-colors hover:text-foreground"
+                                onMouseDown={stopEvent}
+                                onDoubleClick={stopEvent}
                                 onClick={handleRename}
                                 title="重命名"
                             >
@@ -244,7 +270,7 @@ const MinimalGroupNode = ({ data, selected }: NodeProps) => {
                     <div className="pointer-events-none absolute inset-x-4 bottom-4 top-[68px] rounded-[14px] bg-gradient-to-b from-white/4 to-transparent opacity-70" />
                 </>
             )}
-            <div className="absolute inset-0 pointer-events-none">
+            <div className="absolute inset-0 pointer-events-none z-30">
                 <GroupProxyHandles
                     proxy={{
                         showTarget: Boolean(nodeData.proxy?.showTarget),

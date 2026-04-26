@@ -41,6 +41,32 @@ export interface TemplateFlow {
   groups?: Record<string, unknown>[];
 }
 
+export interface LocalTemplateIndexItem {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  tags: string[];
+  author: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface LocalTemplateIndexResponse {
+  items: LocalTemplateIndexItem[];
+}
+
+export interface SaveLocalTemplateInput {
+  id?: string;
+  name: string;
+  description?: string;
+  category?: string;
+  tags?: string[];
+  nodes: Record<string, unknown>[];
+  edges: Record<string, unknown>[];
+  groups?: Record<string, unknown>[];
+}
+
 export async function getTemplateSettings(): Promise<TemplateSettings> {
   return apiCall<TemplateSettings>("/api/templates/settings");
 }
@@ -58,4 +84,25 @@ export async function getTemplateIndex(): Promise<TemplateIndexResponse> {
 
 export async function getTemplateItem(templateId: string): Promise<TemplateFlow> {
   return apiCall<TemplateFlow>(`/api/templates/item?template_id=${encodeURIComponent(templateId)}`);
+}
+
+export async function getLocalTemplateIndex(): Promise<LocalTemplateIndexResponse> {
+  return apiCall<LocalTemplateIndexResponse>("/api/templates/local/index");
+}
+
+export async function getLocalTemplateItem(templateId: string): Promise<TemplateFlow> {
+  return apiCall<TemplateFlow>(`/api/templates/local/item?template_id=${encodeURIComponent(templateId)}`);
+}
+
+export async function saveLocalTemplate(input: SaveLocalTemplateInput): Promise<TemplateFlow> {
+  return apiCall<TemplateFlow>("/api/templates/local/item", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function deleteLocalTemplate(templateId: string): Promise<void> {
+  await apiCall<void>(`/api/templates/local/item?template_id=${encodeURIComponent(templateId)}`, {
+    method: "DELETE",
+  });
 }
