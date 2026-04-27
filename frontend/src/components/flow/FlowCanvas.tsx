@@ -948,7 +948,7 @@ const FlowCanvas = ({
         }));
 
         return { nodeCount: newNodes.length, groupCount: newGroups.length };
-    }, [cloneGroupsWithIdMap, setEdges, setNodes]);
+    }, [cloneGroupsWithIdMap, groups, nodes, setEdges, setNodes]);
 
     useEffect(() => {
         setEdges((eds) => eds.map((edge) => ({ ...edge, animated: isRunning })));
