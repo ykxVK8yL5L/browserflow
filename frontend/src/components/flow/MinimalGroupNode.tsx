@@ -100,7 +100,6 @@ const MinimalGroupNode = ({ data, selected }: NodeProps) => {
 
     const handleSelectGroup = (event: React.MouseEvent<HTMLElement>) => {
         if (isConnecting || event.button !== 0) return;
-        event.preventDefault();
         event.stopPropagation();
         dispatchGroupAction("select", nodeData.groupId, event);
     };
@@ -116,13 +115,11 @@ const MinimalGroupNode = ({ data, selected }: NodeProps) => {
                 event.preventDefault();
                 event.stopPropagation();
             }}
-            onMouseDown={handleSelectGroup}
             onClick={handleSelectGroup}
         >
             <div
                 className="pointer-events-auto absolute inset-0 rounded-[20px] border bg-clip-padding"
                 style={shellStyle}
-                onMouseDown={handleSelectGroup}
                 onClick={handleSelectGroup}
             />
             {!isCollapsed ? (
@@ -147,7 +144,6 @@ const MinimalGroupNode = ({ data, selected }: NodeProps) => {
                         isConnecting ? "pointer-events-none" : "pointer-events-auto",
                     ].join(" ")}
                     style={headerStyle}
-                    onMouseDown={handleSelectGroup}
                     onClick={handleSelectGroup}
                 >
                     <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
@@ -209,8 +205,6 @@ const MinimalGroupNode = ({ data, selected }: NodeProps) => {
                             "absolute inset-x-0 top-0 z-20 flex h-14 items-center justify-between gap-3 rounded-t-[20px] border-b border-white/10 px-3.5",
                             isConnecting ? "pointer-events-none" : "pointer-events-auto",
                         ].join(" ")}
-                        style={headerStyle}
-                        onMouseDown={handleSelectGroup}
                         onClick={handleSelectGroup}
                     >
                         <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
@@ -274,7 +268,6 @@ const MinimalGroupNode = ({ data, selected }: NodeProps) => {
                 <GroupProxyHandles
                     proxy={{
                         showTarget: Boolean(nodeData.proxy?.showTarget),
-                        sourceHandles: nodeData.proxy?.sourceHandles || [undefined],
                         width: nodeData.proxy?.width || 0,
                         height: nodeData.proxy?.height || 0,
                     }}
