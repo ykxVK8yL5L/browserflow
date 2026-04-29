@@ -472,6 +472,52 @@ Inputs：
 - `Args = ["\\d+"]`
 - `Save To Variable = yanzhengma`
 
+
+如果原文是 `您的验证码是 123456`，则 `yanzhengma` 大致为：
+
+```json
+{
+	"match": "123456",
+	"groups": [],
+	"groupdict": {},
+	"start": 7,
+	"end": 13
+}
+```
+
+后续引用验证码正文请使用：`${yanzhengma.match}`。
+
+#### 2. 提取全部匹配项
+
+- `value = message`
+- `Function = regex.findall`
+- `Args = ["\\d+"]`
+
+返回值通常为数组，例如：`["123456", "7890"]`。
+
+#### 3. 替换文本
+
+- `value = message`
+- `Function = regex.replace`
+- `Args = ["\\d+", "******"]`
+
+#### 4. 判断是否命中
+
+- `value = message`
+- `Function = regex.test`
+- `Args = ["\\d+"]`
+
+返回值为布尔值。
+
+#### 5. 在 DSL Inputs 中直接混合文本与变量
+
+例如 `Transform.value` 也可以直接写成：
+
+- `验证码原文：${message}`
+- `prefix-${someNode.result}`
+
+但请注意：如果函数期望处理的是原始对象或数组，建议仍然传裸引用，不要和文本混合。
+
 ### Expression 节点（安全表达式）
 
 当你不想维护越来越长的 `Transform.Function` 列表时，可以使用 `Expression` 节点。
@@ -536,50 +582,6 @@ Inputs：
 
 - `Expression = join(results, "-")`
 
-如果原文是 `您的验证码是 123456`，则 `yanzhengma` 大致为：
-
-```json
-{
-	"match": "123456",
-	"groups": [],
-	"groupdict": {},
-	"start": 7,
-	"end": 13
-}
-```
-
-后续引用验证码正文请使用：`${yanzhengma.match}`。
-
-#### 2. 提取全部匹配项
-
-- `value = message`
-- `Function = regex.findall`
-- `Args = ["\\d+"]`
-
-返回值通常为数组，例如：`["123456", "7890"]`。
-
-#### 3. 替换文本
-
-- `value = message`
-- `Function = regex.replace`
-- `Args = ["\\d+", "******"]`
-
-#### 4. 判断是否命中
-
-- `value = message`
-- `Function = regex.test`
-- `Args = ["\\d+"]`
-
-返回值为布尔值。
-
-#### 5. 在 DSL Inputs 中直接混合文本与变量
-
-例如 `Transform.value` 也可以直接写成：
-
-- `验证码原文：${message}`
-- `prefix-${someNode.result}`
-
-但请注意：如果函数期望处理的是原始对象或数组，建议仍然传裸引用，不要和文本混合。
 
 ### Faker 节点（假数据生成）
 
