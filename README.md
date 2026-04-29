@@ -393,11 +393,11 @@ docker run --name browserflow -d -p 8000:8000 -v $(pwd):/app/backend/data ghcr.i
 
 当你希望在流程中“显式地”做一次转换（而不是写在模板字符串里），推荐使用 `Transform` 节点。
 
-它会对输入值应用一个内置模板函数（与 `${namespace.function(...)}` 同源），避免为 `time/json/string` 等每个小能力都新增专用节点。
+它会对输入值应用一个内置模板函数（与 `${namespace.function(...)}` 同源），避免为 `time/json/string/python基础方法` 等每个小能力都新增专用节点。
 
 参数：
 
-- `Function`：选择要调用的函数，例如 `json.parse` / `json.dumps` / `time.now` / `regex.match` 等
+- `Function`：选择要调用的函数，例如 `json.parse` / `py.len` / `py.int` / `time.now` / `regex.match` 等
 - `Args (after value)`：可选参数列表（在输入 value 之后依次传入）
 - `Save To Variable`：可选，保存到变量仓库
 
@@ -426,6 +426,32 @@ Inputs：
 - `Function = time.epoch_ms`
 - `Save To Variable = ts`
 
+4) 获取数组 / 字符串长度：
+
+- `Function = py.len`
+- `value = ${results}`
+
+5) 把字符串数字转成 number：
+
+- `Function = py.int`
+- `value = ${someNode.result}`
+
+### Transform 支持的 py 函数
+
+`Transform` 节点现已支持以下常用 Python 基础函数：
+
+- `py.len`
+- `py.str`
+- `py.int`
+- `py.float`
+- `py.bool`
+
+其中：
+
+- `py.len`：适合计算数组、字符串、对象长度
+- `py.int` / `py.float`：适合做数值转换
+- `py.bool`：适合把常见字符串值转换成布尔值，如 `true/false`、`1/0`
+
 ### Transform 支持的 regex 函数
 
 `Transform` 节点现已支持以下正则函数：
@@ -445,6 +471,70 @@ Inputs：
 - `Function = regex.match`
 - `Args = ["\\d+"]`
 - `Save To Variable = yanzhengma`
+
+### Expression 节点（安全表达式）
+
+当你不想维护越来越长的 `Transform.Function` 列表时，可以使用 `Expression` 节点。
+
+它适合处理这类通用计算：
+
+- `len(results)`
+- `results[0]`
+- `price * qty`
+- `value if ok else backup`
+- `${node_count.result} > 0`
+
+参数：
+
+- `Expression`：表达式正文
+- `Save To Variable`：可选，保存到变量仓库
+
+Inputs：
+
+- `value`：可选主输入，可在表达式中直接用 `value`
+
+当前支持：
+
+- 变量名 / `vars.xxx`
+- 数组下标 / 切片
+- 算术运算、比较运算、布尔运算
+- 条件表达式 `a if cond else b`
+- 少量安全内建函数：`len`、`int`、`float`、`str`、`bool`、`sum`、`min`、`max`、`sorted`、`abs`、`round`
+- 常用字符串 / 集合 helper：`strip`、`lstrip`、`rstrip`、`lower`、`upper`、`title`、`replace`、`split`、`join`、`startswith`、`endswith`、`contains`
+
+限制：
+
+- 不支持 `import`
+- 不支持任意属性链调用
+- 不支持 `eval/exec`
+- 不支持循环、lambda、推导式
+
+示例：
+
+1) 计算数组长度：
+
+- `Expression = len(results)`
+
+2) 读取第一个元素：
+
+- `Expression = results[0] if len(results) > 0 else None`
+
+3) 使用输入值：
+
+- `value = ${results}`
+- `Expression = len(value)`
+
+4) 去除首尾空白：
+
+- `Expression = strip(value)`
+
+5) 分割字符串：
+
+- `Expression = split(value, ",")`
+
+6) 拼接数组：
+
+- `Expression = join(results, "-")`
 
 如果原文是 `您的验证码是 123456`，则 `yanzhengma` 大致为：
 

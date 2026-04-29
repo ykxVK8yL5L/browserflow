@@ -44,11 +44,19 @@ def ensure_template_functions_loaded() -> TemplateFunctionRegistry:
     registry = TemplateFunctionRegistry()
 
     # Built-in namespaces
-    from core.template_functions import faker_ns, json_ns, random_ns, regex_ns, time_ns
+    from core.template_functions import (
+        faker_ns,
+        json_ns,
+        py_ns,
+        random_ns,
+        regex_ns,
+        time_ns,
+    )
 
     random_ns.register(registry)
     time_ns.register(registry)
     json_ns.register(registry)
+    py_ns.register(registry)
     faker_ns.register(registry)
     regex_ns.register(registry)
 

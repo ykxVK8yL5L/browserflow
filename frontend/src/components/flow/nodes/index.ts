@@ -51,6 +51,7 @@ import SetNode from "./SetNode";
 import RandomNode from "./RandomNode";
 import FakerNode from "./FakerNode";
 import TransformNode from "./TransformNode";
+import ExpressionNode from "./ExpressionNode";
 import DocumentNode from "./DocumentNode";
 import TitleNode from "./TitleNode";
 import UrlNode from "./UrlNode";
@@ -101,6 +102,7 @@ export const nodeRegistry: NodeTypeConfig[] = [
   RandomNode,
   FakerNode,
   TransformNode,
+  ExpressionNode,
   DocumentNode,
   TitleNode,
   UrlNode,

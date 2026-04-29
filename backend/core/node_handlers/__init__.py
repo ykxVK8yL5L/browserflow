@@ -57,6 +57,7 @@ from .storage import handle_cookie_node, handle_localstorage_node
 from .filesystem import handle_file_node
 from .network import handle_http_request_node
 from .transform import handle_transform_node
+from .expression import handle_expression_node
 from .faker_node import handle_faker_node
 from .flow_control import (
     evaluate_condition_config,
@@ -92,6 +93,7 @@ NODE_HANDLERS = {
     "file": handle_file_node,
     "httpRequest": handle_http_request_node,
     "transform": handle_transform_node,
+    "expression": handle_expression_node,
     "faker": handle_faker_node,
     "click": handle_click_node,
     "mouse": handle_mouse_node,
