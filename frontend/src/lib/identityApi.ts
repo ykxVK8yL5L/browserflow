@@ -1,3 +1,5 @@
+import { clearStoredSession, getSession } from "./apiUtils";
+
 // const getApiBase = () => {
 //   if (import.meta.env.VITE_API_BASE) return import.meta.env.VITE_API_BASE;
 //   if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
@@ -9,8 +11,7 @@
 // const API_BASE = getApiBase();
 
 async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const sessionStr = localStorage.getItem("bf_session");
-  const token = sessionStr ? JSON.parse(sessionStr).token : null;
+  const token = getSession()?.token ?? null;
   
   const headers: HeadersInit = {
     "Content-Type": "application/json",
@@ -21,6 +22,9 @@ async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<
   const response = await fetch(`${endpoint}`, { ...options, headers });
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: "Request failed" }));
+    if (response.status === 401) {
+      clearStoredSession();
+    }
     throw new Error(error.detail || "Request failed");
   }
   return response.json();
@@ -59,7 +63,7 @@ export async function deleteIdentity(id: string): Promise<void> {
 }
 
 export async function uploadIdentityState(formData: FormData): Promise<Identity> {
-  const token = localStorage.getItem("bf_session") ? JSON.parse(localStorage.getItem("bf_session")!).token : null;
+  const token = getSession()?.token ?? null;
   
   const headers: HeadersInit = {};
   if (token) (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
@@ -72,6 +76,9 @@ export async function uploadIdentityState(formData: FormData): Promise<Identity>
   
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: "Upload failed" }));
+    if (response.status === 401) {
+      clearStoredSession();
+    }
     throw new Error(error.detail || "Upload failed");
   }
   return response.json();

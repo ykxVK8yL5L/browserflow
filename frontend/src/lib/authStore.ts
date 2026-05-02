@@ -63,9 +63,7 @@ export interface ApiKey {
   revoked: boolean;
 }
 
-// ─── Storage Keys ───────────────────────────────────────
-
-const SESSION_KEY = "bf_session";
+import { AUTH_SESSION_CHANGED_EVENT, SESSION_KEY } from "./apiUtils";
 
 interface StoredSession {
   userId: string;
@@ -99,6 +97,9 @@ async function apiCall<T>(
   
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: "Unknown error" }));
+    if (response.status === 401) {
+      clearSession();
+    }
     throw new Error(error.detail || "Request failed");
   }
   
@@ -151,10 +152,12 @@ function getSession(): StoredSession | null {
 
 function saveSession(session: StoredSession) {
   localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  window.dispatchEvent(new Event(AUTH_SESSION_CHANGED_EVENT));
 }
 
 function clearSession() {
   localStorage.removeItem(SESSION_KEY);
+  window.dispatchEvent(new Event(AUTH_SESSION_CHANGED_EVENT));
 }
 
 // ─── Registration ───────────────────────────────────────

@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { logout as clearAuthSession } from "@/lib/authStore";
+import { clearStoredSession } from "@/lib/apiUtils";
 import AuthPage from "./pages/AuthPage";
 import OtpSetupPage from "./pages/OtpSetupPage";
 import PasswordRecovery from "./pages/PasswordRecovery";
@@ -38,6 +39,12 @@ const ProtectedRoutes = () => {
             Authorization: `Bearer ${user.token}`,
           },
         });
+
+        if (res.status === 401) {
+          clearStoredSession();
+          navigate("/", { replace: true });
+          return;
+        }
 
         if (res.status === 403) {
           const data = await res.json();

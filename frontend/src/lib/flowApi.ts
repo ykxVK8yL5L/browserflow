@@ -5,7 +5,7 @@
  */
 
 import { type Node, type Edge } from "@xyflow/react";
-import { API_BASE, apiCall, getSession } from "./apiUtils";
+import { clearStoredSession, apiCall,getSession } from "./apiUtils";
 import type { FlowNotificationRule } from "./notificationApi";
 import type { FlowGroup } from "./flowGroups";
 

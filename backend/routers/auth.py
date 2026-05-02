@@ -88,6 +88,11 @@ PLATFORM_SETTING_DEFINITIONS = {
         "type": "string",
         "description": "模板索引地址",
     },
+    "system.auto_save_interval_seconds": {
+        "default": 10,
+        "type": "int",
+        "description": "流程编辑器自动保存间隔秒数，0 表示禁用",
+    },
 }
 
 # 临时保存已发起但尚未完成确认的 OTP 重置请求，恢复码仅在确认成功后消费

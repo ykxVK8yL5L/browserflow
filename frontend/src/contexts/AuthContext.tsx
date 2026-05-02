@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
 import { getSession, login as doLogin, register as doRegister, logout as doLogout } from "@/lib/authStore";
+import { AUTH_SESSION_CHANGED_EVENT } from "@/lib/apiUtils";
 
 interface StoredSession {
   userId: string;
@@ -29,11 +30,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // 监听 storage 变化（多标签页同步）
   useEffect(() => {
-    const handleStorageChange = () => {
+    const syncSession = () => {
       setUser(getSession());
     };
-    window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
+    window.addEventListener("storage", syncSession);
+    window.addEventListener(AUTH_SESSION_CHANGED_EVENT, syncSession);
+    return () => {
+      window.removeEventListener("storage", syncSession);
+      window.removeEventListener(AUTH_SESSION_CHANGED_EVENT, syncSession);
+    };
   }, []);
 
   const login = useCallback(async (u: string, p: string) => {

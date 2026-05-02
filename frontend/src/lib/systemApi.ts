@@ -1,5 +1,9 @@
 import { API_BASE, getSession } from "./apiUtils";
 
+export interface SystemSettings {
+  auto_save_interval_seconds: number;
+}
+
 export interface RestoreBackupResponse {
   message: string;
   restored_by: string;
@@ -20,6 +24,37 @@ function getAuthHeaders(): HeadersInit {
   return {
     Authorization: `Bearer ${session.token}`,
   };
+}
+
+export async function getSystemSettings(): Promise<SystemSettings> {
+  const response = await fetch(`${API_BASE}/api/system/settings`, {
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: "加载系统设置失败" }));
+    throw new Error(error.detail || "加载系统设置失败");
+  }
+
+  return response.json();
+}
+
+export async function updateSystemSettings(input: Partial<SystemSettings>): Promise<SystemSettings> {
+  const response = await fetch(`${API_BASE}/api/system/settings`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify(input),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: "保存系统设置失败" }));
+    throw new Error(error.detail || "保存系统设置失败");
+  }
+
+  return response.json();
 }
 
 export async function downloadSystemBackup(options: DownloadSystemBackupOptions = {}): Promise<void> {

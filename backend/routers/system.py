@@ -15,13 +15,22 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.responses import Response
 from sqlalchemy import DateTime
 from sqlalchemy.orm import Session
+from pydantic import BaseModel, Field
 
 from core.scheduler import shutdown_scheduler, start_scheduler
 from models.database import Base, SessionLocal, get_db, init_db
 from models.db_models import UserModel
-from routers.auth import get_current_user
+from routers.auth import get_current_user, get_platform_setting, set_platform_setting
 
 router = APIRouter(prefix="/api/system", tags=["system"])
+
+
+class SystemSettingsResponse(BaseModel):
+    auto_save_interval_seconds: int
+
+
+class SystemSettingsUpdateRequest(BaseModel):
+    auto_save_interval_seconds: int | None = Field(default=None, ge=0, le=86400)
 
 
 def ensure_admin(user: UserModel) -> UserModel:
@@ -31,6 +40,11 @@ def ensure_admin(user: UserModel) -> UserModel:
             detail="Admin privileges required",
         )
     return user
+
+
+def get_system_settings_payload(db: Session) -> SystemSettingsResponse:
+    value = int(get_platform_setting(db, "system.auto_save_interval_seconds") or 0)
+    return SystemSettingsResponse(auto_save_interval_seconds=max(0, value))
 
 
 BACKUP_VERSION = 4
@@ -718,6 +732,34 @@ def _normalize_member_backup_files(raw_files: Any) -> List[Dict[str, Any]]:
             )
         normalized.append({"root": root, "files": files})
     return normalized
+
+
+@router.get("/settings", response_model=SystemSettingsResponse)
+async def get_system_settings(
+    user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    ensure_admin(user)
+    return get_system_settings_payload(db)
+
+
+@router.put("/settings", response_model=SystemSettingsResponse)
+async def update_system_settings(
+    data: SystemSettingsUpdateRequest,
+    user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    ensure_admin(user)
+
+    if data.auto_save_interval_seconds is not None:
+        set_platform_setting(
+            db,
+            "system.auto_save_interval_seconds",
+            max(0, data.auto_save_interval_seconds),
+        )
+
+    db.commit()
+    return get_system_settings_payload(db)
 
 
 @router.get("/backup")

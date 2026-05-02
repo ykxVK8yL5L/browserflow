@@ -53,10 +53,13 @@ interface SystemSettingsProps {
     testResult: NotificationTestSendResponse | null;
     backupLoading: boolean;
     restoreLoading: boolean;
+    autoSaveIntervalSeconds: number;
     templateFeatureEnabled: boolean;
     templateIndexUrl: string;
     uaOpen: boolean;
     onUaOpenChange: (open: boolean) => void;
+    onAutoSaveIntervalSecondsChange: (value: number) => void;
+    onSystemSettingsSave: () => void;
     onTemplateFeatureEnabledChange: (checked: boolean) => void;
     onTemplateIndexUrlChange: (value: string) => void;
     onTemplateSettingsSave: () => void;
@@ -114,10 +117,13 @@ const SystemSettings = ({
     testResult,
     backupLoading,
     restoreLoading,
+    autoSaveIntervalSeconds,
     templateFeatureEnabled,
     templateIndexUrl,
     uaOpen,
     onUaOpenChange,
+    onAutoSaveIntervalSecondsChange,
+    onSystemSettingsSave,
     onTemplateFeatureEnabledChange,
     onTemplateIndexUrlChange,
     onTemplateSettingsSave,
@@ -513,6 +519,42 @@ const SystemSettings = ({
 
                         {activeTab === "tools" && (
                             <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pr-1">
+                                {isAdmin && (
+                                    <div className="rounded-lg border border-border p-4 space-y-4">
+                                        <div>
+                                            <p className="text-sm font-mono text-foreground">编辑器自动保存</p>
+                                            <p className="text-xs font-mono text-muted-foreground">
+                                                设置流程编辑器的自动保存间隔，单位秒。设为 0 时关闭自动保存，默认 10 秒。
+                                            </p>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-mono text-muted-foreground block">
+                                                自动保存间隔（秒）
+                                            </label>
+                                            <Input
+                                                type="number"
+                                                min={0}
+                                                value={autoSaveIntervalSeconds}
+                                                onChange={(e) => onAutoSaveIntervalSecondsChange(Math.max(0, Number(e.target.value) || 0))}
+                                                className="font-mono text-sm"
+                                            />
+                                            <p className="text-[11px] font-mono text-muted-foreground">
+                                                0 = 不启用；建议 5 - 30 秒。
+                                            </p>
+                                        </div>
+
+                                        <div>
+                                            <button
+                                                onClick={onSystemSettingsSave}
+                                                className="px-3 py-2 rounded-md bg-secondary text-secondary-foreground text-xs font-mono hover:bg-secondary/80"
+                                            >
+                                                保存系统设置
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
                                 {isAdmin && (
                                     <div className="rounded-lg border border-border p-4 space-y-4">
                                         <div>

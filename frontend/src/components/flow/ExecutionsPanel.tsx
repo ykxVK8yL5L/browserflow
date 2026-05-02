@@ -1,10 +1,11 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetClose } from "@/components/ui/sheet";
 import { type ExecutionRecord, type PaginatedExecutions, getExecutionsPaginatedFromBackend, clearExecutions, deleteExecutionFromBackend } from "@/lib/executionHistory";
-import { CheckCircle2, XCircle, Clock, SkipForward, Trash2, ChevronDown, ChevronRight, StopCircle, Eye, EyeOff, ChevronLeft, ChevronsLeft, ChevronsRight, X, Copy, Check } from "lucide-react";
+import { CheckCircle2, XCircle, Clock, SkipForward, Trash2, ChevronDown, ChevronRight, StopCircle, Eye, EyeOff, ChevronLeft, ChevronsLeft, ChevronsRight, X, Copy, Check, MoreVertical } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { getSession } from "@/lib/authStore";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 interface ExecutionsPanelProps {
   open: boolean;
@@ -12,6 +13,7 @@ interface ExecutionsPanelProps {
   flowId: string;
   refreshKey: number;
   onShowOnCanvas?: (record: ExecutionRecord | null) => void;
+  onRestoreToCanvas?: (record: ExecutionRecord) => void;
 }
 
 const PAGE_SIZE = 8;
@@ -38,7 +40,14 @@ const nodeStatusIcon: Record<string, React.ReactNode> = {
   skipped: <SkipForward size={12} className="text-muted-foreground" />,
 };
 
-const ExecutionsPanel = ({ open, onClose, flowId, refreshKey, onShowOnCanvas }: ExecutionsPanelProps) => {
+const ExecutionsPanel = ({
+  open,
+  onClose,
+  flowId,
+  refreshKey,
+  onShowOnCanvas,
+  onRestoreToCanvas,
+}: ExecutionsPanelProps) => {
   const [paginated, setPaginated] = useState<PaginatedExecutions>({
     records: [],
     total: 0,
@@ -272,16 +281,6 @@ const ExecutionsPanel = ({ open, onClose, flowId, refreshKey, onShowOnCanvas }: 
                         </div>
                       </button>
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleCopyId(record.id);
-                        }}
-                        className="p-2 mr-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                        title="Copy execution ID"
-                      >
-                        {copiedId === record.id ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
-                      </button>
-                      <button
                         onClick={() => {
                           const newId = isViewing ? null : record.id;
                           setViewingId(newId);
@@ -295,17 +294,45 @@ const ExecutionsPanel = ({ open, onClose, flowId, refreshKey, onShowOnCanvas }: 
                       >
                         {isViewing ? <EyeOff size={14} /> : <Eye size={14} />}
                       </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(record.id);
-                        }}
-                        className="p-2 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                        title="Delete execution"
-                        disabled={loading}
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            onClick={(e) => e.stopPropagation()}
+                            className="p-2 mr-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                            title="More actions"
+                          >
+                            <MoreVertical size={14} />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="min-w-[160px]">
+                          <DropdownMenuItem
+                            onClick={() => onRestoreToCanvas?.(record)}
+                            className="font-mono text-xs"
+                          >
+                            <Clock size={14} className="mr-2" />
+                            恢复到画布
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => void handleCopyId(record.id)}
+                            className="font-mono text-xs"
+                          >
+                            {copiedId === record.id ? (
+                              <Check size={14} className="mr-2 text-green-400" />
+                            ) : (
+                              <Copy size={14} className="mr-2" />
+                            )}
+                            复制执行 ID
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => void handleDelete(record.id)}
+                            className="font-mono text-xs text-destructive focus:text-destructive"
+                            disabled={loading}
+                          >
+                            <Trash2 size={14} className="mr-2" />
+                            删除记录
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
 
                     {/* Expanded detail */}

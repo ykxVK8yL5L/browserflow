@@ -94,6 +94,7 @@ import {
 import type { WaitForUserRequest } from "@/lib/websocketEngine";
 import type { FlowGroup } from "@/lib/flowGroups";
 import { createGroup, remapImportedGroups } from "@/lib/flowGroups";
+import { getSystemSettings } from "@/lib/systemApi";
 
 const initialExecState: FlowExecutionState = {
   status: "idle",
@@ -198,6 +199,7 @@ const DEFAULT_RUN_SETTINGS: Required<RunSettings> = {
 };
 
 const TEMPLATE_PAGE_SIZE = 6;
+const DEFAULT_AUTO_SAVE_INTERVAL_SECONDS = 10;
 
 const mergeRunSettings = (settings?: RunSettings | null): Required<RunSettings> => ({
   ...DEFAULT_RUN_SETTINGS,
@@ -339,6 +341,7 @@ const Index = () => {
   const [waitForUserDialog, setWaitForUserDialog] = useState<WaitForUserDialogState | null>(null);
   const [waitForUserValue, setWaitForUserValue] = useState("");
   const [runSettings, setRunSettings] = useState<Required<RunSettings>>(DEFAULT_RUN_SETTINGS);
+  const [autoSaveIntervalSeconds, setAutoSaveIntervalSeconds] = useState(DEFAULT_AUTO_SAVE_INTERVAL_SECONDS);
   const [userAgents, setUserAgents] = useState<UserAgent[]>([]);
   const abortRef = useRef<AbortController | null>(null);
   const nodesRef = useRef<Node[]>([]);
@@ -363,6 +366,7 @@ const Index = () => {
 
   const [flow, setFlow] = useState<ReturnType<typeof getFlow>>(undefined);
   const [loading, setLoading] = useState(true);
+  const autoSavingRef = useRef(false);
 
 
   // 根据屏幕自动控制
@@ -393,6 +397,15 @@ const Index = () => {
     }
 
     loadUserAgents().then(setUserAgents).catch(console.error);
+
+    getSystemSettings()
+      .then((settings) => {
+        setAutoSaveIntervalSeconds(settings.auto_save_interval_seconds ?? DEFAULT_AUTO_SAVE_INTERVAL_SECONDS);
+      })
+      .catch((error) => {
+        console.error("Failed to load system settings:", error);
+        setAutoSaveIntervalSeconds(DEFAULT_AUTO_SAVE_INTERVAL_SECONDS);
+      });
   }, [flowId]);
 
   // Strip execution data from nodes so they load clean
@@ -446,7 +459,7 @@ const Index = () => {
     setHasUnsaved(true);
   }, []);
 
-  const handleSave = useCallback(async () => {
+  const persistFlow = useCallback(async (options?: { silent?: boolean }) => {
     if (flowId) {
       try {
         const cleanNodes = stripExecData(nodesRef.current);
@@ -462,13 +475,19 @@ const Index = () => {
         savedGroupsRef.current = groupsRef.current;
         savedRunSettingsRef.current = runSettings;
         setHasUnsaved(false);
-        toast.success("Flow saved");
+        if (!options?.silent) {
+          toast.success("Flow saved");
+        }
       } catch (error) {
         console.error("Failed to save flow:", error);
-        toast.error("Failed to save flow");
+        toast.error(options?.silent ? "自动保存失败" : "Failed to save flow");
       }
     }
   }, [flowId, runSettings]);
+
+  const handleSave = useCallback(async () => {
+    await persistFlow();
+  }, [persistFlow]);
 
   const handleReset = useCallback(() => {
     resetFnRef.current?.(savedNodesRef.current, savedEdgesRef.current, savedGroupsRef.current);
@@ -478,6 +497,26 @@ const Index = () => {
     setRunSettings(savedRunSettingsRef.current);
     setHasUnsaved(false);
   }, []);
+
+  useEffect(() => {
+    if (!flowId || autoSaveIntervalSeconds <= 0 || !hasUnsaved || Boolean(historySnapshot)) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      if (autoSavingRef.current) {
+        return;
+      }
+      autoSavingRef.current = true;
+      void persistFlow({ silent: true }).finally(() => {
+        autoSavingRef.current = false;
+      });
+    }, autoSaveIntervalSeconds * 1000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [autoSaveIntervalSeconds, flowId, hasUnsaved, historySnapshot, persistFlow]);
 
   const handleExport = useCallback(() => {
     const data = {
@@ -1004,6 +1043,50 @@ const Index = () => {
 
   const isRunning = execState.status === "running";
   const isViewingHistory = Boolean(historySnapshot);
+  const handleRestoreExecutionSnapshot = useCallback((record: ExecutionRecord) => {
+    const snapshot = record.flowSnapshot;
+    if (!snapshot?.nodes || !snapshot?.edges) {
+      toast.error("该执行记录没有可恢复的流程快照");
+      return;
+    }
+
+    if (execState.status === "running") {
+      toast.error("请先停止当前执行，再恢复历史流程");
+      return;
+    }
+
+    if (hasUnsaved) {
+      const confirmed = window.confirm("当前有未保存修改，恢复执行历史会覆盖当前画布，是否继续？");
+      if (!confirmed) {
+        return;
+      }
+    }
+
+    const restoredNodes = stripExecData(snapshot.nodes as Node[]);
+    const restoredEdges = snapshot.edges as Edge[];
+    const restoredGroups = (snapshot.groups || []) as unknown as FlowGroup[];
+    const restoredRunSettings = mergeRunSettings(snapshot.options as RunSettings | undefined);
+
+    if (historyViewingExecution?.id === record.id) {
+      exitHistoryView();
+    } else {
+      setHistorySnapshot(null);
+      setHistoryNodeResults({});
+      setHistoryViewingExecution(null);
+      setCanvasHasResults(false);
+      setNodeExecStatusRef.current?.("__reset__", "idle");
+    }
+
+    resetFnRef.current?.(restoredNodes, restoredEdges, restoredGroups);
+    nodesRef.current = restoredNodes;
+    edgesRef.current = restoredEdges;
+    groupsRef.current = restoredGroups;
+    setRunSettings(restoredRunSettings);
+    setHasUnsaved(true);
+    setExecutionsOpen(false);
+    toast.success("已从执行历史恢复到画布，请确认后保存");
+  }, [execState.status, exitHistoryView, hasUnsaved, historyViewingExecution?.id]);
+
   const baseDisplayNodes = useMemo(() => stripExecData(flow?.nodes || []), [flow?.nodes]);
   const displayNodes = useMemo(() => {
     if (!historySnapshot?.nodes) {
@@ -1801,6 +1884,7 @@ const Index = () => {
         onClose={() => setExecutionsOpen(false)}
         flowId={flowId || ""}
         refreshKey={executionsRefreshKey}
+        onRestoreToCanvas={handleRestoreExecutionSnapshot}
         onShowOnCanvas={(record) => {
           if (record) {
             setHistoryViewingExecution(record);

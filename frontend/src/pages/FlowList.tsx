@@ -54,7 +54,7 @@ import {
   updateSystemNotificationRules,
 } from "@/lib/notificationApi";
 import { getSchedules, toggleSchedule, type Schedule } from "@/lib/scheduleApi";
-import { downloadSystemBackup, restoreSystemBackup } from "@/lib/systemApi";
+import { downloadSystemBackup, getSystemSettings, restoreSystemBackup, updateSystemSettings } from "@/lib/systemApi";
 import { getTemplateSettings, updateTemplateSettings } from "@/lib/templateApi";
 import { toast } from "sonner";
 
@@ -101,6 +101,7 @@ const FlowList = () => {
   const [testResult, setTestResult] = useState<NotificationTestSendResponse | null>(null);
   const [backupLoading, setBackupLoading] = useState(false);
   const [restoreLoading, setRestoreLoading] = useState(false);
+  const [autoSaveIntervalSeconds, setAutoSaveIntervalSeconds] = useState(10);
   const [templateFeatureEnabled, setTemplateFeatureEnabled] = useState(true);
   const [templateIndexUrl, setTemplateIndexUrl] = useState("");
   const navigate = useNavigate();
@@ -155,6 +156,14 @@ const FlowList = () => {
       });
 
     if (isAdmin) {
+      getSystemSettings()
+        .then((settings) => {
+          setAutoSaveIntervalSeconds(settings.auto_save_interval_seconds ?? 10);
+        })
+        .catch((error) => {
+          console.error("Failed to load system settings:", error);
+        });
+
       getTemplateSettings()
         .then((settings) => {
           setTemplateFeatureEnabled(settings.feature_enabled);
@@ -218,6 +227,18 @@ const FlowList = () => {
       toast.error(error instanceof Error ? error.message : "系统备份失败");
     } finally {
       setBackupLoading(false);
+    }
+  };
+
+  const handleSystemSettingsSave = async () => {
+    try {
+      const updated = await updateSystemSettings({
+        auto_save_interval_seconds: Math.max(0, autoSaveIntervalSeconds),
+      });
+      setAutoSaveIntervalSeconds(updated.auto_save_interval_seconds ?? 0);
+      toast.success("系统设置已保存");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "保存系统设置失败");
     }
   };
 
@@ -835,10 +856,13 @@ const FlowList = () => {
           testResult={testResult}
           backupLoading={backupLoading}
           restoreLoading={restoreLoading}
+          autoSaveIntervalSeconds={autoSaveIntervalSeconds}
           templateFeatureEnabled={templateFeatureEnabled}
           templateIndexUrl={templateIndexUrl}
           uaOpen={uaOpen}
           onUaOpenChange={setUaOpen}
+          onAutoSaveIntervalSecondsChange={setAutoSaveIntervalSeconds}
+          onSystemSettingsSave={() => void handleSystemSettingsSave()}
           onTemplateFeatureEnabledChange={setTemplateFeatureEnabled}
           onTemplateIndexUrlChange={setTemplateIndexUrl}
           onTemplateSettingsSave={() => void handleTemplateSettingsSave()}

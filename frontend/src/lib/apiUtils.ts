@@ -20,6 +20,16 @@ export const API_BASE = '';
 // ─── Storage Keys ───────────────────────────────────────
 
 export const SESSION_KEY = "bf_session";
+export const AUTH_SESSION_CHANGED_EVENT = "bf-auth-session-changed";
+
+export function notifySessionChanged() {
+  window.dispatchEvent(new Event(AUTH_SESSION_CHANGED_EVENT));
+}
+
+export function clearStoredSession() {
+  localStorage.removeItem(SESSION_KEY);
+  notifySessionChanged();
+}
 
 // ─── Helper Functions ───────────────────────────────────
 
@@ -53,6 +63,9 @@ export async function apiCall<T>(
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: "Unknown error" }));
+    if (response.status === 401) {
+      clearStoredSession();
+    }
     throw new Error(error.detail || "Request failed");
   }
 
