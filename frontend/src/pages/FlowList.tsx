@@ -633,9 +633,9 @@ const FlowList = () => {
                         {getFlowScheduleStatus(flow.id) && (
                           <div className="mt-2 grid gap-1 text-[11px] font-mono text-muted-foreground">
                             <p className="truncate">计划任务: {getFlowScheduleStatusText(flow.id)}</p>
-                            <div className="flex items-center justify-between gap-4">
+                            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                               <p className="truncate">上次执行: {formatScheduleTime(summary.lastRunAt)}</p>
-                              <p className="truncate text-right">下次执行: {formatScheduleTime(summary.nextRunAt)}</p>
+                              <p className="truncate sm:text-right">下次执行: {formatScheduleTime(summary.nextRunAt)}</p>
                             </div>
                             <p className="truncate">{getFlowNotificationStatusText(flow)}</p>
                           </div>
