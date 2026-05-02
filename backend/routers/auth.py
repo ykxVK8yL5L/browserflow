@@ -212,6 +212,68 @@ async def get_current_user(
     return user
 
 
+def get_api_key_from_request(
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials],
+) -> Optional[str]:
+    """从请求中提取 API Key。"""
+    x_api_key = request.headers.get("X-API-Key", "").strip()
+    if x_api_key:
+        return x_api_key
+
+    if credentials:
+        token = (credentials.credentials or "").strip()
+        if token.startswith("bfk_"):
+            return token
+
+    return None
+
+
+def authenticate_api_key(api_key: str, db: Session) -> UserModel:
+    """校验 API Key 并返回对应用户。"""
+    key_hash = hash_api_key(api_key)
+    key_record = db.query(ApiKeyModel).filter(ApiKeyModel.key_hash == key_hash).first()
+
+    if not key_record:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API key"
+        )
+
+    if key_record.revoked:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="API key revoked"
+        )
+
+    if key_record.expires_at and key_record.expires_at < datetime.utcnow():
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="API key expired"
+        )
+
+    user = db.query(UserModel).filter(UserModel.id == key_record.user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found"
+        )
+
+    key_record.last_used = datetime.utcnow()
+    db.commit()
+
+    return user
+
+
+async def get_current_user_or_api_key(
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    db: Session = Depends(get_db),
+) -> UserModel:
+    """允许使用 JWT 或 API Key 获取当前用户。"""
+    api_key = get_api_key_from_request(request, credentials)
+    if api_key:
+        return authenticate_api_key(api_key, db)
+
+    return await get_current_user(credentials, db)
+
+
 def get_client_info(request: Request) -> tuple:
     """获取客户端信息"""
     user_agent = request.headers.get("user-agent", "")[:256]

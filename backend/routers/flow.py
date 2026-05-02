@@ -14,7 +14,7 @@ import json
 from models.database import get_db
 from models.db_models import UserModel, FlowModel, ExecutionModel
 from core.notifications import normalize_notification_rules
-from routers.auth import get_current_user
+from routers.auth import get_current_user, get_current_user_or_api_key
 
 router = APIRouter(prefix="/api/flows", tags=["flows"])
 security = HTTPBearer(auto_error=False)
@@ -187,7 +187,7 @@ async def list_flows(
     is_active: Optional[bool] = None,
     page: int = 1,
     page_size: int = 12,
-    user: UserModel = Depends(get_current_user),
+    user: UserModel = Depends(get_current_user_or_api_key),
     db: Session = Depends(get_db),
 ):
     """获取 Flow 列表"""
@@ -241,7 +241,7 @@ async def list_flows(
 @router.get("/{flow_id}", response_model=FlowResponse)
 async def get_flow(
     flow_id: str,
-    user: UserModel = Depends(get_current_user),
+    user: UserModel = Depends(get_current_user_or_api_key),
     db: Session = Depends(get_db),
 ):
     """获取单个 Flow"""

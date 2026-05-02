@@ -24,7 +24,7 @@ from models.db_models import (
     ExecutionModel,
     NodeExecutionModel,
 )
-from routers.auth import get_current_user
+from routers.auth import get_current_user, get_current_user_or_api_key
 from core.queue import execution_queue, ExecutionQueueItem, ExecutionStatus
 from core.executor import run_execution, resolve_flow_credentials
 from core.identity_lock import is_identity_locked, get_lock_owner
@@ -307,7 +307,7 @@ async def list_executions_paginated(
     status: Optional[str] = None,
     page: int = 1,
     pageSize: int = 10,
-    user: UserModel = Depends(get_current_user),
+    user: UserModel = Depends(get_current_user_or_api_key),
     db: Session = Depends(get_db),
 ):
     """获取分页 Execution 列表"""
@@ -530,7 +530,7 @@ async def execute_flow_task(
 async def create_execution(
     data: ExecuteRequest,
     background_tasks: BackgroundTasks,
-    user: UserModel = Depends(get_current_user),
+    user: UserModel = Depends(get_current_user_or_api_key),
     db: Session = Depends(get_db),
 ):
     """创建并执行 Flow"""
@@ -634,7 +634,7 @@ async def list_executions(
     flow_id: Optional[str] = None,
     status: Optional[str] = None,
     limit: int = 50,
-    user: UserModel = Depends(get_current_user),
+    user: UserModel = Depends(get_current_user_or_api_key),
     db: Session = Depends(get_db),
 ):
     """获取 Execution 列表"""
@@ -681,7 +681,7 @@ async def list_executions(
 @router.get("/{execution_id}", response_model=ExecutionResponse)
 async def get_execution(
     execution_id: str,
-    user: UserModel = Depends(get_current_user),
+    user: UserModel = Depends(get_current_user_or_api_key),
     db: Session = Depends(get_db),
 ):
     """获取单个 Execution"""
@@ -728,7 +728,7 @@ async def get_execution(
 @router.get("/{execution_id}/status", response_model=ExecutionStatusResponse)
 async def get_execution_status(
     execution_id: str,
-    user: UserModel = Depends(get_current_user),
+    user: UserModel = Depends(get_current_user_or_api_key),
     db: Session = Depends(get_db),
 ):
     """获取 Execution 状态"""
@@ -759,7 +759,7 @@ async def get_execution_status(
 @router.post("/{execution_id}/cancel")
 async def cancel_execution(
     execution_id: str,
-    user: UserModel = Depends(get_current_user),
+    user: UserModel = Depends(get_current_user_or_api_key),
     db: Session = Depends(get_db),
 ):
     """取消 Execution"""
@@ -994,7 +994,7 @@ class ExecutionDetailResponse(BaseModel):
 @router.get("/{execution_id}/detail", response_model=ExecutionDetailResponse)
 async def get_execution_detail(
     execution_id: str,
-    user: UserModel = Depends(get_current_user),
+    user: UserModel = Depends(get_current_user_or_api_key),
     db: Session = Depends(get_db),
 ):
     """获取 Execution 详情（包含节点执行记录）"""
@@ -1071,7 +1071,7 @@ async def get_execution_screenshot(
     execution_id: str,
     node_id: str,
     filename: str,
-    user: UserModel = Depends(get_current_user),
+    user: UserModel = Depends(get_current_user_or_api_key),
     db: Session = Depends(get_db),
 ):
     """获取某次执行中某个节点生成的截图，仅允许访问当前用户自己的截图。"""
