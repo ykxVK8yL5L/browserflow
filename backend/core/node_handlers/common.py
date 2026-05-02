@@ -604,6 +604,27 @@ def resolve_locator_target(ctx: Any, data: Dict[str, Any], node_data: dict) -> A
     resolved_inputs = node_data.get("resolved_inputs", {}) or {}
     target = resolved_inputs.get("target")
 
+    def _unwrap_target_payload(value: Any) -> Any:
+        if not isinstance(value, dict):
+            return value
+
+        payload_data = value.get("data")
+        if payload_data is None:
+            return value
+
+        if isinstance(payload_data, dict):
+            if payload_data.get("__type__") == "locator_ref":
+                return payload_data
+            if isinstance(payload_data.get("items"), list):
+                return payload_data
+            if isinstance(payload_data.get("result"), list):
+                return payload_data
+
+        if isinstance(payload_data, list):
+            return payload_data
+
+        return value
+
     # 如果 resolved_inputs 中没有 target，尝试从 data 中获取并解析
     if target is None:
         target = data.get("target")
@@ -614,6 +635,8 @@ def resolve_locator_target(ctx: Any, data: Dict[str, Any], node_data: dict) -> A
     # 鲁棒性处理：如果 target 是 {"target": "node_id"} 这种形式，进行解包
     if isinstance(target, dict) and "target" in target and len(target) == 1:
         target = target["target"]
+
+    target = _unwrap_target_payload(target)
 
     # 0. 处理双花括号引用 (例如 {{item}} / {{node_id}} / {{node_id.result}})
     if isinstance(target, str) and target.startswith("{{") and target.endswith("}}"):
@@ -635,6 +658,7 @@ def resolve_locator_target(ctx: Any, data: Dict[str, Any], node_data: dict) -> A
         serialized_target = ctx.outputs.get(target)
         if serialized_target is not None and serialized_target is not target:
             target = serialized_target
+            target = _unwrap_target_payload(target)
 
     # 如果提供了 target (无论是否能解析成功)，则进入 target 解析流程，不再回退到 selector
     if target is not None:

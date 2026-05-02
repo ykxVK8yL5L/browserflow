@@ -149,6 +149,8 @@ docker run --name browserflow -d -p 8000:8000 -v $(pwd):/app/backend/data ghcr.i
 - `map` 支持箭头函数风格和对象字面量返回
 - 页面级读取可直接使用 `title` 与 `url`
 - 页面级读取还支持 `content` 与 `viewport`
+- locator 作为 `target` 传给下游节点时，推荐直接写 `{ "from": "btns" }`
+- 如果遇到旧版本后端或兼容性问题，也可使用备用写法 `{ "from": "btns.data" }`
 
 可直接导入的示例文件：
 
@@ -209,6 +211,8 @@ docker run --name browserflow -d -p 8000:8000 -v $(pwd):/app/backend/data ghcr.i
 - `inputs.xxx = { "from": "message" }` 会直接读取变量或节点输出
 - `inputs.xxx = { "from": "验证码：${message}" }` 会先进行模板展开，结果为字符串
 - 一旦与普通文本混合，最终值会变成字符串
+- 对于 locator 类节点，推荐直接引用节点 id，例如 `{ "from": "btns" }`
+- 如果下游节点需要显式读取 locator 描述符，也兼容 `{ "from": "btns.data" }` 这种备用写法
 
 ### 随机模板函数
 
@@ -758,6 +762,8 @@ https://example.com/detail/123
 - `inputs.target` 如果是纯模板，例如 `${searchInput}`，会解析为原始运行时值
 - `inputs.value` 如果包含前后缀文本，会解析为字符串
 - 未解析到的模板会保留原样，便于排查问题
+- 当 `inputs.target` 引用 locator 节点时，优先使用 `${searchInput}` 或 `{ "from": "searchInput" }`
+- 如果需要兼容旧流程，也可以使用 `${searchInput.data}` 或 `{ "from": "searchInput.data" }`
 
 ## Foreach 中的 break / continue
 
