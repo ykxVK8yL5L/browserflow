@@ -181,8 +181,10 @@ api_keys：
 -   id
 -   key_hash（不存明文）
 -   name
+-   scopes（JSON 数组，记录权限范围）
 -   created_at
 -   expires_at
+-   last_used
 -   revoked
 
 ---
@@ -193,6 +195,7 @@ api_keys：
 -   支持人工 revoke（立即失效）和delete
 -   支持多个 key
 -   必须 hash 存储（安全）
+-   支持按 key 单独配置 scopes（细粒度权限）
 
 ---
 
@@ -201,6 +204,83 @@ api_keys：
 -   key 存在
 -   未 revoked
 -   未过期
+-   访问接口时必须包含该接口要求的 scope
+
+---
+
+### 请求方式
+
+推荐使用请求头：
+
+-   `X-API-Key: bfk_xxx`
+
+兼容：
+
+-   `Authorization: Bearer bfk_xxx`
+
+说明：
+
+-   Header 名大小写不敏感
+-   API Key 明文只在创建时返回一次
+-   旧的“只要是 API Key 就统一放行”的模式已经取消，现统一按 scope 校验
+
+---
+
+### Scope 列表（当前实现）
+
+-   `flow:read`：读取 Flow 列表和详情
+-   `execution:read`：读取执行记录、执行状态、执行详情、截图
+-   `execution:run`：创建并启动执行
+-   `execution:cancel`：取消执行
+
+---
+
+### 路由与 Scope 对应关系
+
+#### `flow:read`
+
+-   `GET /api/flows`
+-   `GET /api/flows/{flow_id}`
+
+#### `execution:read`
+
+-   `GET /api/executions/paginated`
+-   `GET /api/executions`
+-   `GET /api/executions/{execution_id}`
+-   `GET /api/executions/{execution_id}/status`
+-   `GET /api/executions/{execution_id}/detail`
+-   `GET /api/executions/{execution_id}/nodes/{node_id}/screenshot`
+
+#### `execution:run`
+
+-   `POST /api/executions`
+
+#### `execution:cancel`
+
+-   `POST /api/executions/{execution_id}/cancel`
+
+---
+
+### 不对 API Key 开放的敏感接口
+
+以下接口仍然只允许 JWT / 登录态访问：
+
+-   密码修改
+-   OTP / 恢复码相关接口
+-   Session 管理
+-   API Key 自身的管理接口
+-   邮箱绑定 / 验证
+-   Flow 的创建 / 更新 / 删除
+-   Execution 的删除 / 清理
+
+---
+
+### 使用建议
+
+-   给自动化脚本最小权限的 Key，不要给全权限
+-   读流程和执行流程建议拆分成不同 Key
+-   定期设置过期时间并轮换
+-   如有泄漏风险，立即 revoke
 
 ---
 

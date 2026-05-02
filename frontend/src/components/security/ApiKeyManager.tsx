@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import {
+  API_KEY_SCOPE_OPTIONS,
   getUserApiKeys,
   createApiKey,
   revokeApiKey,
@@ -15,6 +16,11 @@ const ApiKeyManager = ({ userId }: { userId: string }) => {
   const [name, setName] = useState("");
   const [expiry, setExpiry] = useState("30");
   const [newKey, setNewKey] = useState<string | null>(null);
+  const [selectedScopes, setSelectedScopes] = useState<string[]>([
+    "flow:read",
+    "execution:read",
+    "execution:run",
+  ]);
 
   const refresh = async () => {
     setLoading(true);
@@ -34,15 +40,24 @@ const ApiKeyManager = ({ userId }: { userId: string }) => {
   }, []);
 
   const handleCreate = async () => {
-    if (!name.trim()) return;
+    if (!name.trim() || selectedScopes.length === 0) return;
     const days = expiry === "never" ? null : parseInt(expiry);
-    const result = await createApiKey(userId, name.trim(), days);
+    const result = await createApiKey(userId, name.trim(), days, selectedScopes);
     if (result) {
       setNewKey(result.key);
       setName("");
+      setSelectedScopes(["flow:read", "execution:read", "execution:run"]);
       setShowCreate(false);
       refresh();
     }
+  };
+
+  const toggleScope = (scope: string) => {
+    setSelectedScopes((current) =>
+      current.includes(scope)
+        ? current.filter((item) => item !== scope)
+        : [...current, scope]
+    );
   };
 
   const handleRevoke = async (id: string) => {
@@ -143,9 +158,37 @@ const ApiKeyManager = ({ userId }: { userId: string }) => {
             <option value="365">Expires in 1 year</option>
             <option value="never">No expiration</option>
           </select>
+          <div className="space-y-2 rounded-md border border-border bg-card p-3">
+            <p className="text-xs font-mono text-muted-foreground">Scopes</p>
+            <div className="space-y-2">
+              {API_KEY_SCOPE_OPTIONS.map((scope) => {
+                const checked = selectedScopes.includes(scope.value);
+                return (
+                  <label
+                    key={scope.value}
+                    className="flex items-center gap-2 text-sm font-mono text-foreground"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleScope(scope.value)}
+                    />
+                    <span>{scope.label}</span>
+                    <code className="text-xs text-muted-foreground">{scope.value}</code>
+                  </label>
+                );
+              })}
+            </div>
+            {selectedScopes.length === 0 && (
+              <p className="text-xs font-mono text-destructive">
+                Select at least one scope.
+              </p>
+            )}
+          </div>
           <div className="flex gap-2">
             <button
               onClick={handleCreate}
+              disabled={selectedScopes.length === 0}
               className="flex-1 px-3 py-2 rounded-md bg-primary text-primary-foreground text-sm font-mono font-medium hover:opacity-90"
             >
               Create
@@ -193,6 +236,11 @@ const ApiKeyManager = ({ userId }: { userId: string }) => {
                   {k.keyPrefix} · Created {new Date(k.createdAt).toLocaleDateString()}
                   {k.expiresAt && ` · Expires ${new Date(k.expiresAt).toLocaleDateString()}`}
                 </p>
+                {k.scopes.length > 0 && (
+                  <p className="text-xs font-mono text-muted-foreground break-all">
+                    Scopes: {k.scopes.join(", ")}
+                  </p>
+                )}
                 {k.lastUsed && (
                   <p className="text-xs font-mono text-muted-foreground">
                     Last used: {new Date(k.lastUsed).toLocaleString()}

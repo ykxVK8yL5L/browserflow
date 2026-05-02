@@ -57,11 +57,19 @@ export interface ApiKey {
   id: string;
   name: string;
   keyPrefix: string;
+  scopes: string[];
   createdAt: string;
   expiresAt?: string;
   lastUsed?: string;
   revoked: boolean;
 }
+
+export const API_KEY_SCOPE_OPTIONS = [
+  { value: "flow:read", label: "Read flows" },
+  { value: "execution:read", label: "Read executions" },
+  { value: "execution:run", label: "Run flows" },
+  { value: "execution:cancel", label: "Cancel executions" },
+] as const;
 
 import { AUTH_SESSION_CHANGED_EVENT, SESSION_KEY } from "./apiUtils";
 
@@ -528,13 +536,15 @@ export async function cleanRevokedSessions(): Promise<number> {
 export async function createApiKey(
   userId: string,
   name: string,
-  expiresInDays: number | null
+  expiresInDays: number | null,
+  scopes: string[]
 ): Promise<{ key: string; apiKey: ApiKey } | null> {
   try {
     const res = await apiCall<{
       id: string;
       name: string;
-      keyPrefix: string;
+      key_prefix: string;
+      scopes: string[];
       created_at: string;
       expires_at?: string;
       last_used?: string;
@@ -542,14 +552,15 @@ export async function createApiKey(
       key: string;
     }>("/api/auth/api-keys", {
       method: "POST",
-      body: JSON.stringify({ name, expires_in_days: expiresInDays }),
+      body: JSON.stringify({ name, expires_in_days: expiresInDays, scopes }),
     });
     return {
       key: res.key,
       apiKey: {
         id: res.id,
         name: res.name,
-        keyPrefix: res.keyPrefix,
+        keyPrefix: res.key_prefix,
+        scopes: res.scopes || [],
         createdAt: res.created_at,
         expiresAt: res.expires_at,
         lastUsed: res.last_used,
@@ -563,8 +574,28 @@ export async function createApiKey(
 
 export async function getUserApiKeys(): Promise<ApiKey[]> {
   try {
-    const res = await apiCall<ApiKey[]>("/api/auth/api-keys");
-    return res;
+    const res = await apiCall<
+      Array<{
+        id: string;
+        name: string;
+        key_prefix: string;
+        scopes?: string[];
+        created_at: string;
+        expires_at?: string;
+        last_used?: string;
+        revoked: boolean;
+      }>
+    >("/api/auth/api-keys");
+    return res.map((item) => ({
+      id: item.id,
+      name: item.name,
+      keyPrefix: item.key_prefix,
+      scopes: item.scopes || [],
+      createdAt: item.created_at,
+      expiresAt: item.expires_at,
+      lastUsed: item.last_used,
+      revoked: item.revoked,
+    }));
   } catch {
     return [];
   }

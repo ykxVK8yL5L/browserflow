@@ -65,6 +65,17 @@ def init_db():
                 text("ALTER TABLE users ADD COLUMN otp_setup_deadline DATETIME")
             )
 
+        api_key_columns = (
+            {row[1] for row in conn.execute(text("PRAGMA table_info(api_keys)"))}
+            if "api_keys" in table_names
+            else set()
+        )
+        if api_key_columns and "scopes" not in api_key_columns:
+            conn.execute(
+                text("ALTER TABLE api_keys ADD COLUMN scopes TEXT DEFAULT '[]'")
+            )
+            conn.execute(text("UPDATE api_keys SET scopes = '[]' WHERE scopes IS NULL"))
+
         # 检查 executions 表是否有 flow_snapshot 列
         exec_columns = {
             row[1] for row in conn.execute(text("PRAGMA table_info(executions)"))

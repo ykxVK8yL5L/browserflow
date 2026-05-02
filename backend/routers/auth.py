@@ -62,6 +62,18 @@ from core.notifications import dispatch_system_notification
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 security = HTTPBearer(auto_error=False)
 
+API_KEY_SCOPE_FLOW_READ = "flow:read"
+API_KEY_SCOPE_EXECUTION_READ = "execution:read"
+API_KEY_SCOPE_EXECUTION_RUN = "execution:run"
+API_KEY_SCOPE_EXECUTION_CANCEL = "execution:cancel"
+
+AVAILABLE_API_KEY_SCOPES = {
+    API_KEY_SCOPE_FLOW_READ: "读取流程",
+    API_KEY_SCOPE_EXECUTION_READ: "读取执行记录",
+    API_KEY_SCOPE_EXECUTION_RUN: "执行流程",
+    API_KEY_SCOPE_EXECUTION_CANCEL: "取消执行",
+}
+
 PLATFORM_SETTING_DEFINITIONS = {
     "auth.registration_enabled": {
         "default": True,
@@ -156,6 +168,38 @@ DEFAULT_SESSION_EXPIRE_DAYS = 7
 def create_session_expiry() -> datetime:
     """创建 session 过期时间"""
     return datetime.utcnow() + timedelta(days=DEFAULT_SESSION_EXPIRE_DAYS)
+
+
+def normalize_api_key_scopes(scopes: list[str] | None) -> list[str]:
+    """规范化 API Key scopes。"""
+    normalized: list[str] = []
+    for scope in scopes or []:
+        scope_value = str(scope).strip()
+        if not scope_value:
+            continue
+        if scope_value not in AVAILABLE_API_KEY_SCOPES:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid API key scope: {scope_value}",
+            )
+        if scope_value not in normalized:
+            normalized.append(scope_value)
+    return normalized
+
+
+def parse_api_key_scopes(raw_scopes) -> list[str]:
+    """解析数据库中保存的 API Key scopes。"""
+    if isinstance(raw_scopes, list):
+        return normalize_api_key_scopes(raw_scopes)
+    if not raw_scopes:
+        return []
+    try:
+        parsed = json.loads(raw_scopes)
+    except Exception:
+        return []
+    if not isinstance(parsed, list):
+        return []
+    return normalize_api_key_scopes(parsed)
 
 
 # ============== 依赖注入 ==============
@@ -255,6 +299,8 @@ def authenticate_api_key(api_key: str, db: Session) -> UserModel:
             status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found"
         )
 
+    setattr(user, "_api_key_id", key_record.id)
+    setattr(user, "_api_key_scopes", parse_api_key_scopes(key_record.scopes))
     key_record.last_used = datetime.utcnow()
     db.commit()
 
@@ -272,6 +318,28 @@ async def get_current_user_or_api_key(
         return authenticate_api_key(api_key, db)
 
     return await get_current_user(credentials, db)
+
+
+def require_api_key_scope(scope: str):
+    async def dependency(
+        request: Request,
+        credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+        db: Session = Depends(get_db),
+    ) -> UserModel:
+        user = await get_current_user_or_api_key(request, credentials, db)
+        api_key = get_api_key_from_request(request, credentials)
+        if not api_key:
+            return user
+
+        scopes = getattr(user, "_api_key_scopes", []) or []
+        if scope not in scopes:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"API key missing required scope: {scope}",
+            )
+        return user
+
+    return dependency
 
 
 def get_client_info(request: Request) -> tuple:
@@ -943,6 +1011,13 @@ async def create_api_key(
     db: Session = Depends(get_db),
 ):
     """创建 API Key"""
+    scopes = normalize_api_key_scopes(data.scopes)
+    if not scopes:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="At least one API key scope is required",
+        )
+
     raw_key = generate_api_key()
     key_hash = hash_api_key(raw_key)
 
@@ -951,6 +1026,7 @@ async def create_api_key(
         name=data.name,
         key_prefix=raw_key[:11] + "...",
         key_hash=key_hash,
+        scopes=json.dumps(scopes),
     )
 
     if data.expires_in_days:
@@ -966,6 +1042,7 @@ async def create_api_key(
         id=api_key.id,
         name=api_key.name,
         key_prefix=api_key.key_prefix,
+        scopes=scopes,
         created_at=api_key.created_at,
         expires_at=api_key.expires_at,
         last_used=api_key.last_used,
@@ -991,6 +1068,7 @@ async def get_api_keys(
             id=k.id,
             name=k.name,
             key_prefix=k.key_prefix,
+            scopes=parse_api_key_scopes(k.scopes),
             created_at=k.created_at,
             expires_at=k.expires_at,
             last_used=k.last_used,

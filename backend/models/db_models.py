@@ -129,6 +129,7 @@ class ApiKeyModel(Base):
     name = Column(String(64), nullable=False)
     key_prefix = Column(String(20), nullable=False)  # 用于显示，如 "bfk_a1b2..."
     key_hash = Column(String(128), nullable=False, unique=True, index=True)
+    scopes = Column(Text, nullable=False, default="[]")
 
     created_at = Column(DateTime, default=datetime.utcnow)
     expires_at = Column(DateTime, nullable=True)
