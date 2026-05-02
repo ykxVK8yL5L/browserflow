@@ -800,4 +800,5 @@ https://example.com/detail/123
 
 - [loveable](https://loveable.dev/)
 - [codex](https://github.com/openai/codex)
+- [GitHub Copilot](https://github.com/features/copilot)
 - [nvidia](https://build.nvidia.com/)
