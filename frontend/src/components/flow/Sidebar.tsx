@@ -47,6 +47,11 @@ const NODE_GROUPS = [
     types: ["cookie", "localstorage"],
   },
   {
+    key: "integration",
+    label: "Integration",
+    types: ["httpRequest", "file", "email"],
+  },
+  {
     key: "control",
     label: "Control Flow",
     types: ["if", "foreach", "while", "for", "map", "set", "log", "stop", "break", "continue"],

@@ -22,10 +22,12 @@ import {
   Upload,
   LayoutTemplate,
   KeyRound,
+  Mail,
   MoreVertical,
   Settings2,
 } from "lucide-react";
 import CredentialsManager from "@/components/flow/CredentialsManager";
+import EmailAccountsManager from "@/components/flow/EmailAccountsManager";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
@@ -314,6 +316,7 @@ const Index = () => {
   const [historyNodeResults, setHistoryNodeResults] = useState<ExecutionRecord["nodeResults"]>({});
   const [historyViewingExecution, setHistoryViewingExecution] = useState<ExecutionRecord | null>(null);
   const [credentialsOpen, setCredentialsOpen] = useState(false);
+  const [EmailAccountsOpen, setEmailAccountsOpen] = useState(false);
   const [runSettingsOpen, setRunSettingsOpen] = useState(false);
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const [templateLoading, setTemplateLoading] = useState(false);
@@ -469,7 +472,9 @@ const Index = () => {
           groups: groupsRef.current,
           run_settings: runSettings,
         });
-        setFlow(updatedFlow);
+        if (!options?.silent) {
+          setFlow(updatedFlow);
+        }
         savedNodesRef.current = cleanNodes;
         savedEdgesRef.current = edgesRef.current;
         savedGroupsRef.current = groupsRef.current;
@@ -1347,6 +1352,15 @@ const Index = () => {
                     <KeyRound size={16} />
                   </button>
                 </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <button
+                    onClick={() => setEmailAccountsOpen(true)}
+                    className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                    title="Email Accounts"
+                  >
+                    <Mail size={16} />
+                  </button>
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem color="red">
                   <button
@@ -1909,6 +1923,10 @@ const Index = () => {
       <CredentialsManager
         open={credentialsOpen}
         onClose={() => setCredentialsOpen(false)}
+      />
+      <EmailAccountsManager
+        open={EmailAccountsOpen}
+        onClose={() => setEmailAccountsOpen(false)}
       />
     </div>
   );

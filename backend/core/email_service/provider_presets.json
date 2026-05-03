@@ -1,0 +1,141 @@
+{
+    "QQ": {
+        "displayName": "QQ Mail",
+        "domains": [
+            "qq.com",
+            "foxmail.com"
+        ],
+        "aliases": [
+            "QQ",
+            "Tencent QQ"
+        ],
+        "imap": {
+            "host": "imap.qq.com",
+            "port": 993,
+            "secure": true
+        },
+        "smtp": {
+            "host": "smtp.qq.com",
+            "port": 465,
+            "secure": true
+        },
+        "auth": {
+            "supported": [
+                "password"
+            ],
+            "default": "password"
+        }
+    },
+    "Mail.com": {
+        "displayName": "Mail.com",
+        "domains": [
+            "mail.com"
+        ],
+        "aliases": [
+            "Mail"
+        ],
+        "imap": {
+            "host": "imap.mail.com",
+            "port": 993,
+            "secure": true
+        },
+        "smtp": {
+            "host": "smtp.mail.com",
+            "port": 465,
+            "secure": true
+        },
+        "auth": {
+            "supported": [
+                "password"
+            ],
+            "default": "password"
+        }
+    },
+    "Z.org": {
+        "displayName": "Z.org",
+        "domains": [
+            "z.org",
+            "elektrine.net",
+            "elektrine.com",
+            "elektrine.org"
+        ],
+        "aliases": [
+            "Z"
+        ],
+        "imap": {
+            "host": "mail.elektrine.com",
+            "port": 993,
+            "secure": true
+        },
+        "smtp": {
+            "host": "mail.elektrine.com",
+            "port": 587,
+            "secure": false
+        },
+        "auth": {
+            "supported": [
+                "password"
+            ],
+            "default": "password"
+        }
+    },
+    "Cock.li": {
+        "displayName": "Cock.li",
+        "domains": [
+            "cock.li",
+            "airmail.cc",
+            "420blaze.it",
+            "aaathats3as.com",
+            "cumallover.me",
+            "horsefucker.org",
+            "national.shitposting.agency",
+            "nigge.rs",
+            "tfwno.gf",
+            "cock.lu",
+            "cock.email",
+            "firemail.cc",
+            "memeware.net",
+            "cocaine.ninja",
+            "waifu.club"
+        ],
+        "aliases": [
+            "Cock"
+        ],
+        "imap": {
+            "host": "mail.cock.li",
+            "port": 993,
+            "secure": true
+        },
+        "smtp": {
+            "host": "mail.cock.li",
+            "port": 465,
+            "secure": true
+        },
+        "auth": {
+            "supported": [
+                "password"
+            ],
+            "default": "password"
+        }
+    },
+    "imap": {
+        "displayName": "Generic IMAP",
+        "domains": [],
+        "aliases": [
+            "custom-imap",
+            "generic"
+        ],
+        "imap": {
+            "host": "",
+            "port": 993,
+            "secure": true
+        },
+        "auth": {
+            "supported": [
+                "password",
+                "oauth2"
+            ],
+            "default": "password"
+        }
+    }
+}

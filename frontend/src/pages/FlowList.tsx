@@ -24,9 +24,10 @@ import {
   UserCircle,
   Bell,
   Download,
-  Upload,
+  Mails,
 } from "lucide-react";
 import CredentialsManager from "@/components/flow/CredentialsManager";
+import ImapAccountsManager from "@/components/flow/EmailAccountsManager";
 import FlowNotificationsEditor from "@/components/flow/FlowNotificationsEditor";
 import IdentityManager from "@/components/flow/IdentityManager";
 import SystemSettings from "@/components/flow/SystemSettings";
@@ -70,6 +71,7 @@ const FlowList = () => {
   const [editingFlow, setEditingFlow] = useState<Flow | null>(null);
   const [selectedIdentityId, setSelectedIdentityId] = useState<string>("");
   const [credentialsOpen, setCredentialsOpen] = useState(false);
+  const [imapAccountsOpen, setImapAccountsOpen] = useState(false);
   const [identitiesOpen, setIdentitiesOpen] = useState(false);
   const { user, logout } = useAuth();
   const isAdmin = user?.role === "admin";
@@ -521,6 +523,13 @@ const FlowList = () => {
           </span>
           <div className="ml-auto flex items-center gap-2">
             <button
+              onClick={() => setImapAccountsOpen(true)}
+              className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Mails size={18} />
+            </button>
+
+            <button
               onClick={() => setIdentitiesOpen(true)}
               className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
               title="Manage Identities"
@@ -567,6 +576,7 @@ const FlowList = () => {
               My Flows
             </h2>
             <div className="flex items-center gap-2">
+
               <button
                 onClick={() => setCredentialsOpen(true)}
                 className="flex items-center gap-2 px-3 py-2 rounded-md bg-card border border-border text-muted-foreground hover:text-foreground text-sm font-mono font-medium hover:bg-secondary transition-colors"
@@ -807,6 +817,10 @@ const FlowList = () => {
         <CredentialsManager
           open={credentialsOpen}
           onClose={() => setCredentialsOpen(false)}
+        />
+        <ImapAccountsManager
+          open={imapAccountsOpen}
+          onClose={() => setImapAccountsOpen(false)}
         />
         <IdentityManager
           open={identitiesOpen}

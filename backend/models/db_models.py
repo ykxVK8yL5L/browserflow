@@ -79,6 +79,9 @@ class UserModel(Base):
     credentials = relationship(
         "CredentialModel", back_populates="user", cascade="all, delete-orphan"
     )
+    email_accounts = relationship(
+        "EmailAccountModel", back_populates="user", cascade="all, delete-orphan"
+    )
     identities = relationship(
         "IdentityModel", back_populates="user", cascade="all, delete-orphan"
     )
@@ -212,6 +215,26 @@ class CredentialModel(Base):
     identities = relationship(
         "IdentityModel", back_populates="credential", cascade="all, delete-orphan"
     )
+
+
+class EmailAccountModel(Base):
+    """邮箱账号表"""
+
+    __tablename__ = "email_accounts"
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    name = Column(String(128), nullable=False)
+    provider = Column(String(64), nullable=False, index=True)
+    address = Column(String(256), nullable=True, index=True)
+    credential_data = Column(Text, nullable=False)  # 加密的 JSON 数据
+    description = Column(Text, nullable=True)
+    is_visible = Column(Boolean, default=True)
+    last_used = Column(DateTime, nullable=True)
+    is_valid = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = relationship("UserModel", back_populates="email_accounts")
 
 
 class IdentityModel(Base):

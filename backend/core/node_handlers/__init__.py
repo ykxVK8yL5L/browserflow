@@ -56,6 +56,7 @@ from .browser import (
 from .storage import handle_cookie_node, handle_localstorage_node
 from .filesystem import handle_file_node
 from .network import handle_http_request_node
+from .email import handle_email_node
 from .transform import handle_transform_node
 from .expression import handle_expression_node
 from .faker_node import handle_faker_node
@@ -93,6 +94,7 @@ NODE_HANDLERS = {
     "localstorage": handle_localstorage_node,
     "file": handle_file_node,
     "httpRequest": handle_http_request_node,
+    "email": handle_email_node,
     "transform": handle_transform_node,
     "expression": handle_expression_node,
     "faker": handle_faker_node,

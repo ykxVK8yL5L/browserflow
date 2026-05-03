@@ -37,6 +37,12 @@ def init_db():
     """初始化数据库，创建所有表"""
     from . import db_models  # noqa: F401
 
+    email_provider_values = (
+        "imap",
+        "inboxes",
+        "generator.email",
+    )
+
     Base.metadata.create_all(bind=engine)
 
     with engine.begin() as conn:
@@ -497,4 +503,79 @@ def init_db():
         if credential_columns and "is_visible" not in credential_columns:
             conn.execute(
                 text("ALTER TABLE credentials ADD COLUMN is_visible BOOLEAN DEFAULT 1")
+            )
+
+        email_account_columns = (
+            {row[1] for row in conn.execute(text("PRAGMA table_info(email_accounts)"))}
+            if "email_accounts" in table_names
+            else set()
+        )
+        if email_account_columns:
+            if "provider" not in email_account_columns:
+                conn.execute(
+                    text(
+                        "ALTER TABLE email_accounts ADD COLUMN provider VARCHAR(64) DEFAULT 'imap'"
+                    )
+                )
+            if "address" not in email_account_columns:
+                conn.execute(
+                    text("ALTER TABLE email_accounts ADD COLUMN address VARCHAR(256)")
+                )
+            if "is_visible" not in email_account_columns:
+                conn.execute(
+                    text(
+                        "ALTER TABLE email_accounts ADD COLUMN is_visible BOOLEAN DEFAULT 1"
+                    )
+                )
+
+        if "credentials" in table_names and "email_accounts" in table_names:
+            placeholders = ", ".join(
+                f":provider_{index}" for index, _ in enumerate(email_provider_values)
+            )
+            provider_params = {
+                f"provider_{index}": provider
+                for index, provider in enumerate(email_provider_values)
+            }
+            conn.execute(
+                text(
+                    f"""
+                    INSERT INTO email_accounts (
+                        id,
+                        user_id,
+                        name,
+                        provider,
+                        address,
+                        credential_data,
+                        description,
+                        is_visible,
+                        last_used,
+                        is_valid,
+                        created_at,
+                        updated_at
+                    )
+                    SELECT
+                        c.id,
+                        c.user_id,
+                        c.name,
+                        c.site,
+                        NULL,
+                        c.credential_data,
+                        c.description,
+                        COALESCE(c.is_visible, 1),
+                        c.last_used,
+                        c.is_valid,
+                        c.created_at,
+                        c.updated_at
+                    FROM credentials c
+                    WHERE c.site IN ({placeholders})
+                      AND NOT EXISTS (
+                          SELECT 1 FROM email_accounts ea WHERE ea.id = c.id
+                      )
+                    """
+                ),
+                provider_params,
+            )
+            conn.execute(
+                text(f"DELETE FROM credentials WHERE site IN ({placeholders})"),
+                provider_params,
             )

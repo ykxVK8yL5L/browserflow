@@ -300,6 +300,73 @@ type InputRef =
 
 这种写法适合你已经清楚上游节点输出结构，并且只想取其中一个字段。
 
+#### 场景 4：Email 节点字段引用
+
+`Email` 节点当前也会走统一输出包装，最终结构仍然是：
+
+```json
+{
+  "status": "success",
+  "message": "Email address acquired",
+  "error": null,
+  "data": {
+    "emailAddress": "example@domain.com",
+    "identifier": "example@domain.com",
+    "account": { ... },
+    "message": { ... }
+  }
+}
+```
+
+现在 `Email` 节点也会提供一个默认的 `result` 字段，用于和其他值型节点保持一致：
+
+- `get_address` 时：`result = emailAddress`
+- `get_email` 时：`result = message.text`，如果没有文本则回退到 `message.html`、`message.subject`；如果未匹配到邮件则返回空字符串
+- `get_email` 额外提供 `matched` 字段；未匹配到邮件时不会抛错，便于流程中自行判断
+
+因此下面这些写法现在都可用：
+
+- `emailNode.result`
+- `${emailNode.result}`
+
+推荐直接按字段取值：
+
+- `emailNode.emailAddress`
+- `emailNode.message.text`
+- `emailNode.message.subject`
+- `emailNode.account.address`
+
+兼容写法也可以显式走 `data`：
+
+- `emailNode.data.emailAddress`
+- `emailNode.data.message.text`
+
+例如：
+
+```json
+{
+  "inputs": {
+    "address": { "from": "email_1.result" },
+    "text": { "from": "email_1.emailAddress" },
+    "body": { "from": "email_2.message.text" }
+  }
+}
+```
+
+如果要配合变量保存，可以先把：
+
+```text
+{{email_1.emailAddress}}
+```
+
+保存为变量 `mail_address`，后续再通过：
+
+```text
+{{mail_address}}
+```
+
+继续引用。
+
 #### 推荐约定
 
 为了减少歧义，建议统一遵守下面的约定：

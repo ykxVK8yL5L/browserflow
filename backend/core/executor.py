@@ -129,6 +129,9 @@ def build_node_output_store(result: NodeResult) -> Dict[str, Any]:
         "status": result.status,
         "error": result.error,
         "message": result.message,
+        "startedAt": result.started_at.isoformat() if result.started_at else None,
+        "finishedAt": result.finished_at.isoformat() if result.finished_at else None,
+        "durationMs": result.duration_ms,
         "data": result.data if isinstance(result.data, dict) else result.data,
     }
 

@@ -109,6 +109,8 @@ web_modules/
 .env.production.local
 .env.local
 
+.vscode
+
 # user data
 backend/data
 

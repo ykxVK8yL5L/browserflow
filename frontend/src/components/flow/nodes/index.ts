@@ -49,6 +49,7 @@ import ContinueNode from "./ContinueNode";
 import StopNode from "./StopNode";
 import SetNode from "./SetNode";
 import LogNode from "./LogNode";
+import EmailNode from "./EmailNode";
 import RandomNode from "./RandomNode";
 import FakerNode from "./FakerNode";
 import TransformNode from "./TransformNode";
@@ -101,6 +102,7 @@ export const nodeRegistry: NodeTypeConfig[] = [
   StopNode,
   SetNode,
   LogNode,
+  EmailNode,
   RandomNode,
   FakerNode,
   TransformNode,

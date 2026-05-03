@@ -32,6 +32,7 @@ from routers.auth import router as auth_router
 from routers.passkey import router as passkey_router
 from routers.flow import router as flow_router
 from routers.credential import router as credential_router
+from routers.email_account import router as email_account_router
 from routers.identity import router as identity_router
 from routers.user_agent import router as user_agent_router
 from routers.execution import router as execution_router
@@ -189,6 +190,7 @@ app.include_router(passkey_router)
 # 注册 Flow 相关路由
 app.include_router(flow_router)
 app.include_router(credential_router)
+app.include_router(email_account_router)
 app.include_router(identity_router)
 app.include_router(user_agent_router)
 app.include_router(execution_router)

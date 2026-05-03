@@ -214,6 +214,30 @@ docker run --name browserflow -d -p 8000:8000 -v $(pwd):/app/backend/data ghcr.i
 - 对于 locator 类节点，推荐直接引用节点 id，例如 `{ "from": "btns" }`
 - 如果下游节点需要显式读取 locator 描述符，也兼容 `{ "from": "btns.data" }` 这种备用写法
 
+### Email 节点引用说明
+
+`Email` 节点虽然同样会被统一包装为 `status / message / error / data` 结构，但现在也提供了默认的 `result` 字段。
+
+- `get_address` 时，`result` 默认等于 `emailAddress`
+- `get_email` 时，`result` 默认优先等于 `message.text`，没有时回退到 `message.html`、`message.subject`；如果没取到邮件则返回空字符串 `""`
+- `get_email` 会额外返回 `matched`：有匹配邮件时为 `true`，没有时为 `false`
+- 没有邮件时节点不会报错，可用 `${emailNode.matched}` 或 `${emailNode.messageCount}` 自行判断
+
+因此推荐这样引用：
+
+- `${emailNode.result}`
+- `${emailNode.emailAddress}`
+- `${emailNode.message.text}`
+- `${emailNode.message.subject}`
+- `${emailNode.account.address}`
+
+兼容写法也支持：
+
+- `${emailNode.data.emailAddress}`
+- `${emailNode.data.message.text}`
+
+如果只是要拿邮箱地址，`${emailNode.result}` 和 `${emailNode.emailAddress}` 现在都可以，建议在“只关心主返回值”时优先使用 `${emailNode.result}`。
+
 ### 随机模板函数
 
 当前模板系统支持“模板函数调用”，可直接在任意支持模板解析的文本参数中使用：
