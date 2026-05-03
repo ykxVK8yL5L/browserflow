@@ -67,6 +67,7 @@ from .flow_control import (
     handle_for_node,
     handle_foreach_node,
     handle_if_node,
+    handle_log_node,
     handle_map_node,
     handle_random_node,
     handle_stop_node,
@@ -135,6 +136,7 @@ NODE_HANDLERS = {
     "continue": handle_continue_node,
     "stop": handle_stop_node,
     "set": handle_set_variable_node,
+    "log": handle_log_node,
     "random": handle_random_node,
     "waitForUser": handle_wait_for_user_node,
 }

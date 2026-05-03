@@ -49,7 +49,7 @@ const NODE_GROUPS = [
   {
     key: "control",
     label: "Control Flow",
-    types: ["if", "foreach", "while", "for", "map", "set", "stop", "break", "continue"],
+    types: ["if", "foreach", "while", "for", "map", "set", "log", "stop", "break", "continue"],
   },
 ];
 

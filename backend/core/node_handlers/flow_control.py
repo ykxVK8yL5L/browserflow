@@ -95,6 +95,19 @@ def _clone_variable_value(value: Any) -> Any:
     return value
 
 
+def _format_log_value(value: Any) -> str:
+    if value is None:
+        return "null"
+    if isinstance(value, str):
+        return value
+    if isinstance(value, (int, float, bool)):
+        return str(value)
+    try:
+        return json.dumps(value, ensure_ascii=False)
+    except Exception:
+        return repr(value)
+
+
 def _secure_shuffle(items: list[str]) -> list[str]:
     shuffled = list(items)
     for index in range(len(shuffled) - 1, 0, -1):
@@ -362,6 +375,44 @@ async def handle_random_node(
         if count == 1
         else f"Generated {count} random {kind} values"
     )
+
+
+async def handle_log_node(
+    ctx, data: dict, normalized_node: dict, result, predecessor_output: Any
+) -> None:
+    node_id = normalized_node["id"]
+    node_name = normalized_node.get("name") or data.get("label") or "Log"
+
+    level = str(data.get("level") or "info").strip().lower() or "info"
+    if level not in {"debug", "info", "warn", "error"}:
+        level = "info"
+
+    raw_message = data.get("message", "")
+    resolved_message = resolve_output_reference(raw_message, ctx.outputs)
+    message_text = str(resolved_message).strip() if resolved_message is not None else ""
+
+    if not message_text and predecessor_output is not None:
+        message_text = _format_log_value(predecessor_output)
+
+    final_message = message_text or "Log node executed"
+
+    await ctx.sandbox.emit_log(
+        level,
+        final_message,
+        node_id=node_id,
+        node_name=node_name,
+    )
+
+    result.data = {
+        "result": (
+            resolved_message if resolved_message is not None else predecessor_output
+        ),
+        "message": final_message,
+        "rawMessage": raw_message or None,
+        "level": level,
+    }
+    ctx.outputs[node_id] = result.data
+    result.message = final_message
 
 
 async def handle_wait_for_user_node(
