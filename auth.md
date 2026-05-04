@@ -1,4 +1,14 @@
-# 统一认证与访问控制系统设计（最终版 v4）
+# 统一认证与访问控制系统设计（最终版 v4，已完成）
+
+## 当前实现状态
+
+- 当前认证体系可标记为完成
+- 已实现用户名/邮箱 + 密码登录，登录接口为 `POST /api/auth/login`
+- 已实现 Passkey 登录与管理
+- 已实现 OTP 校验、首次登录 OTP 设置检查、恢复码流程
+- 已实现 JWT + Session 鉴权
+- 已实现 WebSocket 鉴权，连接时携带 token 并校验 session 有效性
+- 前端执行流在 `frontend/src/pages/Index.tsx` 中已通过 `getSession()?.token` 传递 WebSocket 鉴权信息
 
 ## 一、系统目标
 

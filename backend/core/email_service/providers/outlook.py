@@ -42,6 +42,11 @@ class OutlookEmailProvider(EmailProvider):
             label="Client ID",
         ),
         EmailProviderField(
+            key="redirectUri",
+            label="Redirect URI",
+            placeholder="例如: http://localhost:8080/api/email-accounts/oauth/outlook/callback",
+        ),
+        EmailProviderField(
             key="refreshToken",
             label="Refresh Token",
             input_type="password",

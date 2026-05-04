@@ -1,14 +1,20 @@
 """Email account 路由。"""
 
 import asyncio
-from datetime import datetime
+import base64
+from datetime import datetime, timedelta
+import hashlib
 import imaplib
 import json
+import secrets
 import socket
 from types import SimpleNamespace
 from typing import List, Optional
+from urllib.parse import urlparse, urlunparse
+from urllib.parse import urlencode
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -22,6 +28,8 @@ from utils.auth_utils import decrypt_data, encrypt_data
 
 router = APIRouter(prefix="/api/email-accounts", tags=["email-accounts"])
 email_service = EmailService()
+OUTLOOK_OAUTH_STATE_TTL = timedelta(minutes=15)
+_outlook_oauth_states: dict[str, dict] = {}
 
 
 class EmailProviderFieldResponse(BaseModel):
@@ -123,6 +131,27 @@ class EmailReceiveTestResponse(BaseModel):
     mailbox_count: int
     message_count: int
     message: str
+
+
+class EmailAccountReauthorizeResponse(BaseModel):
+    success: bool
+    provider: str
+    message: str
+    expires_at: Optional[str] = None
+
+
+class OutlookReauthorizeStartResponse(BaseModel):
+    authorization_url: str
+    state: str
+
+
+class OutlookReauthorizeStartRequest(BaseModel):
+    redirect_uri: Optional[str] = None
+
+
+class OutlookReauthorizeCompleteRequest(BaseModel):
+    state: str = Field(..., min_length=1)
+    code: str = Field(..., min_length=1)
 
 
 @router.get("/providers", response_model=List[EmailProviderDefinitionResponse])
@@ -311,6 +340,149 @@ def choose_test_mailbox(mailboxes: list[str]) -> str | None:
         if preferred in normalized_map:
             return normalized_map[preferred]
     return next((mailbox for mailbox in mailboxes if mailbox.strip()), None)
+
+
+def _cleanup_outlook_oauth_states() -> None:
+    now = datetime.utcnow()
+    expired_keys = [
+        key
+        for key, payload in _outlook_oauth_states.items()
+        if payload.get("expires_at") is None or payload["expires_at"] <= now
+    ]
+    for key in expired_keys:
+        _outlook_oauth_states.pop(key, None)
+
+
+def _normalize_outlook_redirect_uri(redirect_uri: str) -> str:
+    parsed = urlparse(redirect_uri)
+    if parsed.scheme not in {"http", "https"}:
+        raise ValueError("redirect_uri 必须是 http 或 https 地址")
+    if not parsed.netloc:
+        raise ValueError("redirect_uri 缺少主机地址")
+
+    hostname = parsed.hostname or ""
+    if hostname == "127.0.0.1":
+        netloc = parsed.netloc.replace("127.0.0.1", "localhost", 1)
+        parsed = parsed._replace(netloc=netloc)
+
+    return urlunparse(parsed)
+
+
+def _build_outlook_redirect_uri(
+    request: Request, override_redirect_uri: Optional[str] = None
+) -> str:
+    if override_redirect_uri:
+        return _normalize_outlook_redirect_uri(override_redirect_uri.strip())
+    return _normalize_outlook_redirect_uri(
+        str(request.url_for("outlook_reauthorize_callback"))
+    )
+
+
+def _resolve_outlook_redirect_uri(
+    request: Request,
+    credential_data: dict,
+    override_redirect_uri: Optional[str] = None,
+) -> str:
+    stored_redirect_uri = str(
+        credential_data.get("redirectUri") or credential_data.get("redirect_uri") or ""
+    ).strip()
+    return _build_outlook_redirect_uri(
+        request,
+        override_redirect_uri or stored_redirect_uri or None,
+    )
+
+
+def _build_outlook_code_challenge(code_verifier: str) -> str:
+    digest = hashlib.sha256(code_verifier.encode("utf-8")).digest()
+    return base64.urlsafe_b64encode(digest).decode("utf-8").rstrip("=")
+
+
+async def _complete_outlook_oauth_reauthorize(
+    db: Session,
+    state: str,
+    code: str,
+) -> str:
+    _cleanup_outlook_oauth_states()
+    oauth_state = _outlook_oauth_states.pop(state, None)
+    if oauth_state is None:
+        raise ValueError("授权状态已失效，请重新发起 Outlook 授权")
+
+    account = (
+        db.query(EmailAccountModel)
+        .filter(
+            EmailAccountModel.id == oauth_state["account_id"],
+            EmailAccountModel.user_id == oauth_state["user_id"],
+        )
+        .first()
+    )
+    if not account:
+        raise ValueError("对应邮箱账号不存在，无法完成 Outlook 重新授权")
+
+    credential_data = decrypt_credential_data(
+        account.credential_data, oauth_state["user_id"]
+    )
+    tenant = oauth_state["tenant"]
+    token_url = OutlookEmailProvider.token_url_template.format(tenant=tenant)
+
+    from curl_cffi import requests as curl_requests
+
+    try:
+        response = await asyncio.to_thread(
+            curl_requests.post,
+            token_url,
+            data={
+                "client_id": oauth_state["client_id"],
+                "grant_type": "authorization_code",
+                "code": code,
+                "redirect_uri": oauth_state["redirect_uri"],
+                "code_verifier": oauth_state["code_verifier"],
+                "scope": oauth_state["scope"],
+            },
+            timeout=30,
+            impersonate="chrome",
+        )
+        result = response.json()
+        if response.status_code >= 400 or "refresh_token" not in result:
+            detail = result if isinstance(result, dict) else response.text
+            raise ValueError(str(detail))
+
+        access_token = str(result.get("access_token") or "").strip()
+        refresh_token = str(result.get("refresh_token") or "").strip()
+        expires_in = result.get("expires_in", 3600)
+        try:
+            expires_seconds = int(expires_in)
+        except (TypeError, ValueError):
+            expires_seconds = 3600
+        expires_at = (
+            datetime.utcnow() + timedelta(seconds=expires_seconds)
+        ).isoformat()
+
+        merged_data = dict(credential_data)
+        merged_data["clientId"] = oauth_state["client_id"]
+        merged_data["tenant"] = tenant
+        merged_data["refreshToken"] = refresh_token
+        merged_data["accessToken"] = access_token
+        merged_data["tokenExpiresAt"] = expires_at
+        merged_data["authType"] = (
+            str(merged_data.get("authType") or "oauth2").strip() or "oauth2"
+        )
+        if result.get("scope"):
+            merged_data["scopes"] = str(result.get("scope"))
+
+        account.credential_data = encrypt_credential_data(
+            merged_data, oauth_state["user_id"]
+        )
+        account.is_valid = True
+        account.last_used = datetime.utcnow()
+        account.updated_at = datetime.utcnow()
+        db.commit()
+        return "Outlook 重新授权成功，现在可以关闭此窗口"
+    except Exception as error_obj:
+        account.is_valid = False
+        account.updated_at = datetime.utcnow()
+        db.commit()
+        detail = str(error_obj).strip() or "Outlook 重新授权失败"
+        raise ValueError(detail) from error_obj
 
 
 @router.post("", response_model=EmailAccountResponse)
@@ -691,3 +863,307 @@ async def test_email_receive(
                 client.logout()
             except Exception:
                 pass
+
+
+@router.post(
+    "/{account_id}/reauthorize", response_model=EmailAccountReauthorizeResponse
+)
+async def reauthorize_email_account(
+    account_id: str,
+    user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    account = (
+        db.query(EmailAccountModel)
+        .filter(
+            EmailAccountModel.id == account_id, EmailAccountModel.user_id == user.id
+        )
+        .first()
+    )
+    if not account:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Email account not found"
+        )
+
+    credential_data = decrypt_credential_data(account.credential_data, user.id)
+    provider = extract_provider(credential_data, account.provider)
+    if provider != "outlook":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="当前仅支持 Outlook 邮箱重新授权",
+        )
+
+    address = extract_address(credential_data)
+    client_id = str(
+        credential_data.get("clientId") or credential_data.get("client_id") or ""
+    ).strip()
+    refresh_token = str(
+        credential_data.get("refreshToken")
+        or credential_data.get("refresh_token")
+        or ""
+    ).strip()
+    password = str(credential_data.get("password") or "").strip()
+
+    if not address or not client_id or not refresh_token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="当前 Outlook 账号缺少邮箱地址、Client ID 或 Refresh Token，无法重新授权",
+        )
+
+    provider_impl = OutlookEmailProvider()
+    provider_account = SimpleNamespace(
+        metadata={
+            "clientId": client_id,
+            "tenant": str(credential_data.get("tenant") or "common").strip()
+            or "common",
+            **(
+                {"scopes": credential_data.get("scopes")}
+                if credential_data.get("scopes")
+                else {}
+            ),
+            **(
+                {"tokenExpiresAt": credential_data.get("tokenExpiresAt")}
+                if credential_data.get("tokenExpiresAt")
+                else {}
+            ),
+            **(
+                {"expiresAt": credential_data.get("expiresAt")}
+                if credential_data.get("expiresAt")
+                else {}
+            ),
+        },
+        secrets={
+            "refreshToken": refresh_token,
+            **(
+                {"accessToken": credential_data.get("accessToken")}
+                if credential_data.get("accessToken")
+                else {}
+            ),
+            **({"password": password} if password else {}),
+        },
+        auth_type=str(credential_data.get("authType") or "oauth2").strip() or "oauth2",
+    )
+
+    try:
+        token_data = await asyncio.to_thread(
+            provider_impl._ensure_access_token,
+            provider_account,
+            client_id,
+            refresh_token,
+        )
+        access_token = str(token_data.get("access_token") or "").strip()
+        next_refresh_token = str(
+            token_data.get("refresh_token") or refresh_token
+        ).strip()
+        expires_at = str(token_data.get("expires_at") or "").strip()
+
+        merged_data = dict(credential_data)
+        merged_data["refreshToken"] = next_refresh_token
+        merged_data["accessToken"] = access_token
+        merged_data["clientId"] = client_id
+        merged_data["tenant"] = provider_account.metadata.get("tenant") or "common"
+        if expires_at:
+            merged_data["tokenExpiresAt"] = expires_at
+
+        account.credential_data = encrypt_credential_data(merged_data, user.id)
+        account.is_valid = True
+        account.last_used = datetime.utcnow()
+        account.updated_at = datetime.utcnow()
+        db.commit()
+
+        return EmailAccountReauthorizeResponse(
+            success=True,
+            provider=provider,
+            message="Outlook 重新授权成功",
+            expires_at=expires_at or None,
+        )
+    except Exception as error:
+        account.is_valid = False
+        account.updated_at = datetime.utcnow()
+        db.commit()
+        detail = str(error).strip() or "重新授权失败"
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Outlook 重新授权失败: {detail}",
+        ) from error
+
+
+@router.post(
+    "/{account_id}/reauthorize/start",
+    response_model=OutlookReauthorizeStartResponse,
+)
+async def start_outlook_reauthorize(
+    account_id: str,
+    request: Request,
+    payload: Optional[OutlookReauthorizeStartRequest] = None,
+    user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    account = (
+        db.query(EmailAccountModel)
+        .filter(
+            EmailAccountModel.id == account_id, EmailAccountModel.user_id == user.id
+        )
+        .first()
+    )
+    if not account:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Email account not found"
+        )
+
+    credential_data = decrypt_credential_data(account.credential_data, user.id)
+    provider = extract_provider(credential_data, account.provider)
+    if provider != "outlook":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="当前仅支持 Outlook 邮箱重新授权",
+        )
+
+    client_id = str(
+        credential_data.get("clientId") or credential_data.get("client_id") or ""
+    ).strip()
+    if not client_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="当前 Outlook 账号缺少 Client ID，无法重新授权",
+        )
+
+    _cleanup_outlook_oauth_states()
+    state = secrets.token_urlsafe(32)
+    code_verifier = secrets.token_urlsafe(64)
+    code_challenge = _build_outlook_code_challenge(code_verifier)
+    try:
+        redirect_uri = _resolve_outlook_redirect_uri(
+            request,
+            credential_data,
+            payload.redirect_uri if payload else None,
+        )
+    except ValueError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(error),
+        ) from error
+    tenant = str(credential_data.get("tenant") or "common").strip() or "common"
+    provider_impl = OutlookEmailProvider()
+    scope = str(credential_data.get("scopes") or "").strip() or " ".join(
+        provider_impl.default_scopes
+    )
+
+    _outlook_oauth_states[state] = {
+        "account_id": account.id,
+        "user_id": user.id,
+        "client_id": client_id,
+        "tenant": tenant,
+        "code_verifier": code_verifier,
+        "redirect_uri": redirect_uri,
+        "scope": scope,
+        "expires_at": datetime.utcnow() + OUTLOOK_OAUTH_STATE_TTL,
+    }
+
+    authorization_url = (
+        f"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/authorize?"
+        + urlencode(
+            {
+                "client_id": client_id,
+                "response_type": "code",
+                "redirect_uri": redirect_uri,
+                "response_mode": "query",
+                "scope": scope,
+                "state": state,
+                "prompt": "select_account",
+                "code_challenge": code_challenge,
+                "code_challenge_method": "S256",
+            }
+        )
+    )
+
+    return OutlookReauthorizeStartResponse(
+        authorization_url=authorization_url,
+        state=state,
+    )
+
+
+@router.post("/oauth/outlook/complete")
+async def complete_outlook_reauthorize(
+    payload: OutlookReauthorizeCompleteRequest,
+    user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    del user
+    try:
+        message = await _complete_outlook_oauth_reauthorize(
+            db,
+            payload.state.strip(),
+            payload.code.strip(),
+        )
+        return {"success": True, "message": message}
+    except ValueError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(error),
+        ) from error
+
+
+@router.get(
+    "/oauth/outlook/callback",
+    response_class=HTMLResponse,
+    name="outlook_reauthorize_callback",
+)
+async def outlook_reauthorize_callback(
+    request: Request,
+    code: Optional[str] = None,
+    state: Optional[str] = None,
+    error: Optional[str] = None,
+    error_description: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
+    del request
+
+    def build_html(success: bool, message: str) -> HTMLResponse:
+        payload = json.dumps(
+            {
+                "type": "outlook-email-reauthorize",
+                "success": success,
+                "message": message,
+            },
+            ensure_ascii=False,
+        )
+        html = f"""
+<!doctype html>
+<html>
+<head>
+  <meta charset=\"utf-8\" />
+  <title>Outlook 重新授权</title>
+</head>
+<body style=\"font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 24px;\">
+  <h3>{'授权成功' if success else '授权失败'}</h3>
+  <p>{message}</p>
+  <script>
+    (function() {{
+      const payload = {payload};
+      if (window.opener) {{
+        window.opener.postMessage(payload, window.location.origin);
+        window.close();
+      }}
+    }})();
+  </script>
+</body>
+</html>
+        """
+        return HTMLResponse(content=html)
+
+    if not state:
+        return build_html(False, "缺少 state，无法完成 Outlook 重新授权")
+
+    if error:
+        detail = (error_description or error).strip()
+        return build_html(False, f"Outlook 授权被取消或失败: {detail}")
+
+    if not code:
+        return build_html(False, "缺少授权 code，无法完成 Outlook 重新授权")
+
+    try:
+        message = await _complete_outlook_oauth_reauthorize(db, state, code)
+        return build_html(True, message)
+    except ValueError as error_obj:
+        return build_html(False, str(error_obj))

@@ -89,6 +89,27 @@ export interface EmailReceiveTestResult {
   message: string;
 }
 
+export interface EmailAccountReauthorizeResult {
+  success: boolean;
+  provider: string;
+  message: string;
+  expires_at: string | null;
+}
+
+export interface OutlookReauthorizeStartResult {
+  authorization_url: string;
+  state: string;
+}
+
+export interface OutlookReauthorizeStartOptions {
+  redirectUri?: string;
+}
+
+export interface OutlookReauthorizeCompleteResult {
+  success: boolean;
+  message: string;
+}
+
 export interface EmailAccountImportResult {
   count: number;
 }
@@ -247,8 +268,39 @@ export async function deleteEmailAccounts(ids: string[]): Promise<EmailAccountBu
   });
 }
 
+export async function startOutlookReauthorize(
+  id: string,
+  options?: OutlookReauthorizeStartOptions,
+): Promise<OutlookReauthorizeStartResult> {
+  return apiCall<OutlookReauthorizeStartResult>(`/api/email-accounts/${id}/reauthorize/start`, {
+    method: "POST",
+    body: JSON.stringify({
+      redirect_uri: options?.redirectUri,
+    }),
+  });
+}
+
+export async function completeOutlookReauthorize(
+  state: string,
+  code: string,
+): Promise<OutlookReauthorizeCompleteResult> {
+  return apiCall<OutlookReauthorizeCompleteResult>("/api/email-accounts/oauth/outlook/complete", {
+    method: "POST",
+    body: JSON.stringify({
+      state,
+      code,
+    }),
+  });
+}
+
 export async function testEmailAccountReceive(id: string): Promise<EmailReceiveTestResult> {
   return apiCall<EmailReceiveTestResult>(`/api/email-accounts/${id}/test-email-receive`, {
+    method: "POST",
+  });
+}
+
+export async function reauthorizeEmailAccount(id: string): Promise<EmailAccountReauthorizeResult> {
+  return apiCall<EmailAccountReauthorizeResult>(`/api/email-accounts/${id}/reauthorize`, {
     method: "POST",
   });
 }

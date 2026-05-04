@@ -13,10 +13,12 @@ import {
 import { toast } from "sonner";
 
 import {
+    completeOutlookReauthorize,
     deleteEmailAccounts,
     fetchEmailProviders,
     fetchEmailAccounts,
     importEmailAccounts,
+    startOutlookReauthorize,
     testEmailAccountReceive,
     updateEmailAccount,
     deleteEmailAccount,
@@ -63,6 +65,46 @@ type DeleteDialogState =
     | { open: true; mode: "single"; accountId: string; accountName: string }
     | { open: true; mode: "bulk"; ids: string[]; count: number };
 
+type ReauthorizeDialogState =
+    | { open: false }
+    | { open: true; accountId: string; accountName: string; authorizationUrl: string; state: string; codeInput: string; submitting: boolean };
+
+const parseOutlookReauthorizeInput = (value: string): { code: string; state?: string } => {
+    const trimmed = value.trim();
+    if (!trimmed) {
+        return { code: "" };
+    }
+
+    const tryParseParams = (params: URLSearchParams) => {
+        const code = params.get("code")?.trim() || "";
+        const state = params.get("state")?.trim() || undefined;
+        return code ? { code, state } : null;
+    };
+
+    try {
+        const url = new URL(trimmed);
+        const fromSearch = tryParseParams(url.searchParams);
+        if (fromSearch) return fromSearch;
+
+        if (url.hash.startsWith("#")) {
+            const fromHash = tryParseParams(new URLSearchParams(url.hash.slice(1)));
+            if (fromHash) return fromHash;
+        }
+    } catch {
+        // ignore invalid URL and continue parsing as plain query/code text
+    }
+
+    const normalized = trimmed.startsWith("?") || trimmed.startsWith("#")
+        ? trimmed.slice(1)
+        : trimmed;
+    const fromPlainParams = tryParseParams(new URLSearchParams(normalized));
+    if (fromPlainParams) {
+        return fromPlainParams;
+    }
+
+    return { code: trimmed };
+};
+
 const buildEditableData = (account: EmailAccountRecord) => ({
     ...account.credential_data,
     provider: account.provider,
@@ -72,6 +114,7 @@ const buildEditableData = (account: EmailAccountRecord) => ({
     username: account.username,
     password: "",
     clientId: String(account.credential_data?.clientId || account.credential_data?.client_id || ""),
+    redirectUri: String(account.credential_data?.redirectUri || account.credential_data?.redirect_uri || ""),
     refreshToken: "",
     accessToken: "",
 });
@@ -91,8 +134,10 @@ const EmailAccountsManager = ({ open, onClose }: EmailAccountsManagerProps) => {
     const [editDescription, setEditDescription] = useState("");
     const [editData, setEditData] = useState<Record<string, any>>({});
     const [receivingTestIds, setReceivingTestIds] = useState<Set<string>>(new Set());
+    const [reauthorizingIds, setReauthorizingIds] = useState<Set<string>>(new Set());
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [deleteDialog, setDeleteDialog] = useState<DeleteDialogState>({ open: false });
+    const [reauthorizeDialog, setReauthorizeDialog] = useState<ReauthorizeDialogState>({ open: false });
 
     const loadAccounts = useCallback(async () => {
         setLoading(true);
@@ -357,6 +402,124 @@ const EmailAccountsManager = ({ open, onClose }: EmailAccountsManagerProps) => {
         }
     };
 
+    const handleReauthorize = async (account: EmailAccountRecord) => {
+        if (account.provider !== "outlook") {
+            toast.info("当前仅 Outlook 邮箱支持重新授权");
+            return;
+        }
+
+        setReauthorizingIds((prev) => new Set(prev).add(account.id));
+        try {
+            const redirectUri = String(
+                account.credential_data?.redirectUri
+                || account.credential_data?.redirect_uri
+                || "",
+            ).trim();
+            const result = await startOutlookReauthorize(account.id, {
+                redirectUri: redirectUri || undefined,
+            });
+            setReauthorizeDialog({
+                open: true,
+                accountId: account.id,
+                accountName: account.name,
+                authorizationUrl: result.authorization_url,
+                state: result.state,
+                codeInput: "",
+                submitting: false,
+            });
+
+            const popup = window.open(
+                result.authorization_url,
+                `outlook-reauthorize-${account.id}`,
+                "popup=yes,width=720,height=820,resizable=yes,scrollbars=yes",
+            );
+
+            if (!popup) {
+                toast.info("授权链接已生成，请复制后手动打开完成授权");
+                return;
+            }
+
+            const authResult = await new Promise<{ success: boolean; message: string }>((resolve, reject) => {
+                let settled = false;
+
+                const cleanup = () => {
+                    window.removeEventListener("message", handleMessage);
+                    window.clearInterval(timer);
+                };
+
+                const finish = (value: { success: boolean; message: string }, isError = false) => {
+                    if (settled) return;
+                    settled = true;
+                    cleanup();
+                    if (isError) {
+                        reject(new Error(value.message));
+                    } else {
+                        resolve(value);
+                    }
+                };
+
+                const handleMessage = (event: MessageEvent) => {
+                    if (event.origin !== window.location.origin) return;
+                    const data = event.data;
+                    if (!data || data.type !== "outlook-email-reauthorize") return;
+                    finish({
+                        success: Boolean(data.success),
+                        message: String(data.message || (data.success ? "重新授权成功" : "重新授权失败")),
+                    }, !data.success);
+                };
+
+                const timer = window.setInterval(() => {
+                    if (popup.closed) {
+                        finish({ success: false, message: "授权窗口已关闭，重新授权已取消" }, true);
+                    }
+                }, 500);
+
+                window.addEventListener("message", handleMessage);
+            });
+
+            toast.success(authResult.message);
+            setReauthorizeDialog({ open: false });
+            await loadAccounts();
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "重新授权失败");
+            await loadAccounts();
+        } finally {
+            setReauthorizingIds((prev) => {
+                const next = new Set(prev);
+                next.delete(account.id);
+                return next;
+            });
+        }
+    };
+
+    const handleCompleteReauthorizeCode = async () => {
+        if (!reauthorizeDialog.open || reauthorizeDialog.submitting) return;
+        const parsed = parseOutlookReauthorizeInput(reauthorizeDialog.codeInput);
+        const state = (parsed.state || reauthorizeDialog.state).trim();
+        const code = parsed.code.trim();
+        if (!code) {
+            toast.error("请先粘贴返回的 code 或完整回调 URL");
+            return;
+        }
+        if (!state) {
+            toast.error("缺少 state，请重新发起授权");
+            return;
+        }
+
+        setReauthorizeDialog((prev) => (prev.open ? { ...prev, submitting: true } : prev));
+        try {
+            const result = await completeOutlookReauthorize(state, code);
+            toast.success(result.message);
+            setReauthorizeDialog({ open: false });
+            await loadAccounts();
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "手动提交授权码失败");
+            await loadAccounts();
+        } finally {
+            setReauthorizeDialog((prev) => (prev.open ? { ...prev, submitting: false } : prev));
+        }
+    };
+
     const renderProviderField = (field: EmailProviderFieldDefinition) => (
         <div key={field.key}>
             <label className="text-xs font-mono text-muted-foreground block mb-1.5">{field.label}</label>
@@ -370,6 +533,22 @@ const EmailAccountsManager = ({ open, onClose }: EmailAccountsManagerProps) => {
     );
 
     const renderProviderActions = (account: EmailAccountRecord) => {
+        const isReauthorizing = reauthorizingIds.has(account.id);
+
+        if (account.provider === "outlook") {
+            return (
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void handleReauthorize(account)}
+                    disabled={isReauthorizing}
+                >
+                    <ShieldCheck size={14} className={isReauthorizing ? "animate-pulse" : ""} />
+                    {isReauthorizing ? "重新授权中..." : "重新授权"}
+                </Button>
+            );
+        }
+
         return (
             <Button
                 variant="outline"
@@ -700,6 +879,75 @@ const EmailAccountsManager = ({ open, onClose }: EmailAccountsManagerProps) => {
                         <AlertDialogAction onClick={() => void handleConfirmDelete()} disabled={submitting}>
                             {submitting ? "删除中..." : "确认删除"}
                         </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog
+                open={reauthorizeDialog.open}
+                onOpenChange={(next) => {
+                    if (!next) {
+                        setReauthorizeDialog({ open: false });
+                    }
+                }}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Outlook 重新授权链接</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {reauthorizeDialog.open
+                                ? `已为邮箱账号“${reauthorizeDialog.accountName}”生成授权链接。可复制后手动在浏览器打开完成授权。`
+                                : "已生成授权链接。"}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    {reauthorizeDialog.open ? (
+                        <div className="space-y-3">
+                            <Textarea
+                                className="min-h-[140px] font-mono text-xs"
+                                readOnly
+                                value={reauthorizeDialog.authorizationUrl}
+                            />
+                            <div>
+                                <label className="text-xs font-mono text-muted-foreground block mb-1.5">手动粘贴返回的 code 或完整回调 URL</label>
+                                <Textarea
+                                    className="min-h-[120px] font-mono text-xs"
+                                    value={reauthorizeDialog.codeInput}
+                                    onChange={(event) => setReauthorizeDialog((prev) => {
+                                        if (!prev.open) return prev;
+                                        return { ...prev, codeInput: event.target.value };
+                                    })}
+                                    placeholder="支持直接粘贴 code=...&state=... 或完整回调 URL"
+                                />
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    className="flex-1"
+                                    onClick={() => void handleCopy(reauthorizeDialog.authorizationUrl, "授权链接")}
+                                >
+                                    <Copy size={14} />
+                                    复制链接
+                                </Button>
+                                <Button
+                                    className="flex-1"
+                                    onClick={() => window.open(reauthorizeDialog.authorizationUrl, "_blank", "noopener,noreferrer")}
+                                >
+                                    <ShieldCheck size={14} />
+                                    新窗口打开
+                                </Button>
+                            </div>
+                            <Button
+                                className="w-full"
+                                onClick={() => void handleCompleteReauthorizeCode()}
+                                disabled={reauthorizeDialog.submitting}
+                            >
+                                <ShieldCheck size={14} className={reauthorizeDialog.submitting ? "animate-pulse" : ""} />
+                                {reauthorizeDialog.submitting ? "提交中..." : "提交 code 完成授权"}
+                            </Button>
+                        </div>
+                    ) : null}
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>关闭</AlertDialogCancel>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
