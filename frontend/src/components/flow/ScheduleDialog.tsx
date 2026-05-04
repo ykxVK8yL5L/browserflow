@@ -4,6 +4,16 @@ import type { Flow } from "@/lib/flowStore";
 import type { Identity } from "@/lib/identityStore";
 import { Switch } from "@/components/ui/switch";
 import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
     createSchedule,
     deleteSchedule,
     getSchedules,
@@ -45,6 +55,12 @@ const emptyForm = {
     enabled: false,
 };
 
+type DeleteDialogState = {
+    open: boolean;
+    scheduleId?: string;
+    scheduleName?: string;
+};
+
 export default function ScheduleDialog({ open, flow, identities, onClose, onChanged }: Props) {
     const [schedules, setSchedules] = useState<Schedule[]>([]);
     const [loading, setLoading] = useState(false);
@@ -53,6 +69,7 @@ export default function ScheduleDialog({ open, flow, identities, onClose, onChan
     const [togglingAll, setTogglingAll] = useState(false);
     const [form, setForm] = useState(emptyForm);
     const [editingId, setEditingId] = useState<string | null>(null);
+    const [deleteDialog, setDeleteDialog] = useState<DeleteDialogState>({ open: false });
     const title = useMemo(() => (flow ? `计划任务 · ${flow.name}` : "计划任务"), [flow]);
     const enabledCount = schedules.filter((item) => item.enabled).length;
     const hasSchedules = schedules.length > 0;
@@ -143,6 +160,20 @@ export default function ScheduleDialog({ open, flow, identities, onClose, onChan
     const handleDelete = async (scheduleId: string) => {
         await deleteSchedule(scheduleId);
         await loadSchedules();
+    };
+
+    const requestDelete = (schedule: Schedule) => {
+        setDeleteDialog({
+            open: true,
+            scheduleId: schedule.id,
+            scheduleName: schedule.name,
+        });
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!deleteDialog.open || !deleteDialog.scheduleId) return;
+        await handleDelete(deleteDialog.scheduleId);
+        setDeleteDialog({ open: false });
     };
 
     const handleToggleAll = async (enabled: boolean) => {
@@ -297,7 +328,7 @@ export default function ScheduleDialog({ open, flow, identities, onClose, onChan
                                                 <button onClick={() => handleToggle(schedule)} className={`px-2 py-1 rounded-md text-xs font-mono ${schedule.enabled ? "bg-primary/15 text-primary" : "bg-secondary text-secondary-foreground"}`}>
                                                     {schedule.enabled ? "关闭" : "启用"}
                                                 </button>
-                                                <button onClick={() => handleDelete(schedule.id)} className="p-2 rounded-md hover:bg-destructive/20 text-muted-foreground hover:text-destructive" title="删除">
+                                                <button onClick={() => requestDelete(schedule)} className="p-2 rounded-md hover:bg-destructive/20 text-muted-foreground hover:text-destructive" title="删除">
                                                     <Trash2 size={14} />
                                                 </button>
                                             </div>
@@ -308,6 +339,26 @@ export default function ScheduleDialog({ open, flow, identities, onClose, onChan
                         )}
                     </div>
                 </div>
+
+                <AlertDialog
+                    open={deleteDialog.open}
+                    onOpenChange={(open) => setDeleteDialog(open ? deleteDialog : { open: false })}
+                >
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>确认删除计划任务</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                确定要删除计划任务 “{deleteDialog.scheduleName || "未命名任务"}” 吗？此操作不可撤销。
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel disabled={saving || loading}>取消</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => void handleConfirmDelete()} disabled={saving || loading}>
+                                删除
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
             </div>
         </div>
     );

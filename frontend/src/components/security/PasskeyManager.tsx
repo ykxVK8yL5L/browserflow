@@ -3,12 +3,23 @@ import { getCurrentUser } from "@/lib/authStore";
 import { beginPasskeyRegistration, completePasskeyRegistration, deletePasskey } from "@/lib/authStore";
 import type { User } from "@/lib/authStore";
 import { Fingerprint, Trash2, Loader2, CheckCircle } from "lucide-react";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const PasskeyManager = ({ userId }: { userId: string }) => {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState(false);
     const [success, setSuccess] = useState("");
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
     // 加载数据
     const loadData = useCallback(async () => {
@@ -105,8 +116,6 @@ const PasskeyManager = ({ userId }: { userId: string }) => {
 
     // 删除 Passkey
     const handleRemove = async () => {
-        if (!confirm("确定要删除此 Passkey 吗？删除后将无法使用 Passkey 登录。")) return;
-
         setActionLoading(true);
         setSuccess("");
 
@@ -120,6 +129,7 @@ const PasskeyManager = ({ userId }: { userId: string }) => {
         }
 
         setActionLoading(false);
+        setDeleteDialogOpen(false);
     };
 
     if (loading) {
@@ -163,7 +173,7 @@ const PasskeyManager = ({ userId }: { userId: string }) => {
                             </p>
                         </div>
                         <button
-                            onClick={handleRemove}
+                            onClick={() => setDeleteDialogOpen(true)}
                             disabled={actionLoading}
                             className="p-2 rounded-md hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
                         >
@@ -189,6 +199,23 @@ const PasskeyManager = ({ userId }: { userId: string }) => {
                     </button>
                 )}
             </div>
+
+            <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>确认删除 Passkey</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            确定要删除此 Passkey 吗？删除后将无法使用 Passkey 登录。
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={actionLoading}>取消</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => void handleRemove()} disabled={actionLoading}>
+                            删除
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 };

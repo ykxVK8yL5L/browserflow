@@ -35,6 +35,22 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
+type DeleteDialogState = {
+    open: boolean;
+    userAgentId?: string;
+    userAgentValue?: string;
+};
 
 const UserAgentManager = () => {
     const [uas, setUas] = useState<UserAgent[]>([]);
@@ -48,6 +64,7 @@ const UserAgentManager = () => {
     const [editingUa, setEditingUa] = useState<UserAgent | null>(null);
     const [editValue, setEditValue] = useState("");
     const [editIsDefault, setEditIsDefault] = useState(false);
+    const [deleteDialog, setDeleteDialog] = useState<DeleteDialogState>({ open: false });
 
     useEffect(() => {
         refresh();
@@ -99,6 +116,20 @@ const UserAgentManager = () => {
         } catch (e) {
             toast.error("Failed to delete User-Agent");
         }
+    };
+
+    const requestDelete = (ua: UserAgent) => {
+        setDeleteDialog({
+            open: true,
+            userAgentId: ua.id,
+            userAgentValue: ua.value,
+        });
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!deleteDialog.open || !deleteDialog.userAgentId) return;
+        await handleDelete(deleteDialog.userAgentId);
+        setDeleteDialog({ open: false });
     };
 
     const openEdit = (ua: UserAgent) => {
@@ -168,7 +199,7 @@ const UserAgentManager = () => {
                                     variant="ghost"
                                     size="icon"
                                     className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                                    onClick={() => handleDelete(ua.id)}
+                                    onClick={() => requestDelete(ua)}
                                 >
                                     <Trash2 size={12} />
                                 </Button>
@@ -262,6 +293,27 @@ const UserAgentManager = () => {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <AlertDialog
+                open={deleteDialog.open}
+                onOpenChange={(open) => setDeleteDialog(open ? deleteDialog : { open: false })}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>确认删除 User-Agent</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            确定要删除这个 User-Agent 吗？
+                            {deleteDialog.userAgentValue ? `\n\n${deleteDialog.userAgentValue}` : ""}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>取消</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => void handleConfirmDelete()}>
+                            删除
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 };

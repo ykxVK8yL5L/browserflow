@@ -6,6 +6,16 @@ import { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { getSession } from "@/lib/authStore";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface ExecutionsPanelProps {
   open: boolean;
@@ -40,6 +50,11 @@ const nodeStatusIcon: Record<string, React.ReactNode> = {
   skipped: <SkipForward size={12} className="text-muted-foreground" />,
 };
 
+type DeleteDialogState =
+  | { open: false }
+  | { open: true; mode: "single"; executionId: string }
+  | { open: true; mode: "clear-all" };
+
 const ExecutionsPanel = ({
   open,
   onClose,
@@ -64,6 +79,7 @@ const ExecutionsPanel = ({
   const [screenshotLoading, setScreenshotLoading] = useState(false);
   const [screenshotError, setScreenshotError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [deleteDialog, setDeleteDialog] = useState<DeleteDialogState>({ open: false });
 
   const loadPage = useCallback(async (page: number) => {
     setLoading(true);
@@ -159,6 +175,7 @@ const ExecutionsPanel = ({
       }
     } finally {
       setLoading(false);
+      setDeleteDialog({ open: false });
     }
   };
 
@@ -193,7 +210,6 @@ const ExecutionsPanel = ({
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this execution?")) return;
     setLoading(true);
     try {
       await deleteExecutionFromBackend(id);
@@ -202,7 +218,25 @@ const ExecutionsPanel = ({
       console.error("Failed to delete execution:", error);
     } finally {
       setLoading(false);
+      setDeleteDialog({ open: false });
     }
+  };
+
+  const requestDeleteExecution = (id: string) => {
+    setDeleteDialog({ open: true, mode: "single", executionId: id });
+  };
+
+  const requestClearAll = () => {
+    setDeleteDialog({ open: true, mode: "clear-all" });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteDialog.open) return;
+    if (deleteDialog.mode === "single") {
+      await handleDelete(deleteDialog.executionId);
+      return;
+    }
+    await handleClear();
   };
 
   const { records, total, page, totalPages } = paginated;
@@ -221,7 +255,7 @@ const ExecutionsPanel = ({
             <div className="flex items-center gap-2">
               {total > 0 && (
                 <button
-                  onClick={handleClear}
+                  onClick={requestClearAll}
                   disabled={loading}
                   className="text-xs font-mono text-muted-foreground hover:text-destructive transition-colors flex items-center gap-1 disabled:opacity-50"
                 >
@@ -324,7 +358,7 @@ const ExecutionsPanel = ({
                             复制执行 ID
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            onClick={() => void handleDelete(record.id)}
+                            onClick={() => requestDeleteExecution(record.id)}
                             className="font-mono text-xs text-destructive focus:text-destructive"
                             disabled={loading}
                           >
@@ -464,6 +498,29 @@ const ExecutionsPanel = ({
           )}
         </DialogContent>
       </Dialog>
+      <AlertDialog
+        open={deleteDialog.open}
+        onOpenChange={(open) => setDeleteDialog(open ? deleteDialog : { open: false })}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {deleteDialog.open && deleteDialog.mode === "clear-all" ? "确认清空执行记录" : "确认删除执行记录"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteDialog.open && deleteDialog.mode === "clear-all"
+                ? "确定要清空当前 Flow 的所有执行记录吗？此操作不可撤销。"
+                : "确定要删除这条执行记录吗？此操作不可撤销。"}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={loading}>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void handleConfirmDelete()} disabled={loading}>
+              删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Sheet >
   );
 };
