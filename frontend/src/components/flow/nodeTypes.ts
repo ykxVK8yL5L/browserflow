@@ -8,6 +8,7 @@ export interface NodeField {
   valueSource?: "data" | "params";
   placeholder?: string;
   options?: { label: string; value: string }[];
+  optionsSource?: "emailProviders";
   defaultValue?: string | number | boolean;
   listSchema?: NodeField[];
   visibleWhen?: Record<string, string | number | boolean>;

@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { type Node } from "@xyflow/react";
 import { NODE_TYPES_CONFIG, type NodeField } from "./nodeTypes";
+import { fetchEmailProviders } from "@/lib/emailAccountStore";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -60,9 +61,30 @@ const NodeEditor = ({ node, open, onSave, onClose, readOnly = false }: NodeEdito
     });
     return vals;
   });
+  const [emailProviderOptions, setEmailProviderOptions] = useState<Array<{ label: string; value: string }>>([]);
 
   if (!config) return null;
   const Icon = config.icon;
+
+  useEffect(() => {
+    const needsEmailProviders = config.fields.some((field) => field.optionsSource === "emailProviders");
+    if (!needsEmailProviders) return;
+
+    let cancelled = false;
+    void fetchEmailProviders()
+      .then((items) => {
+        if (cancelled) return;
+        setEmailProviderOptions(items.map((item) => ({ label: item.label, value: item.key })));
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setEmailProviderOptions([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [config]);
 
   const updateField = (key: string, value: any) => {
     setFieldValues((prev) => ({ ...prev, [key]: value }));
@@ -113,6 +135,7 @@ const NodeEditor = ({ node, open, onSave, onClose, readOnly = false }: NodeEdito
 
   const renderField = (field: NodeField) => {
     const value = fieldValues[field.key] ?? "";
+    const resolvedOptions = field.optionsSource === "emailProviders" ? emailProviderOptions : field.options;
 
     if (field.type === "list" && field.listSchema) {
       const list = Array.isArray(value) ? value : [];
@@ -171,7 +194,7 @@ const NodeEditor = ({ node, open, onSave, onClose, readOnly = false }: NodeEdito
       );
     }
 
-    if (field.type === "select" && field.options) {
+    if (field.type === "select" && resolvedOptions) {
       return (
         <select
           className={inputClass}
@@ -179,7 +202,7 @@ const NodeEditor = ({ node, open, onSave, onClose, readOnly = false }: NodeEdito
           onChange={(e) => updateField(field.key, e.target.value)}
           disabled={readOnly}
         >
-          {field.options.map((opt) => (
+          {resolvedOptions.map((opt) => (
             <option key={opt.value} value={opt.value}>{opt.label}</option>
           ))}
         </select>

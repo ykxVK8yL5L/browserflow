@@ -1,10 +1,4 @@
 import { apiCall as sharedApiCall, SESSION_KEY } from "./apiUtils";
-import type {
-  EmailAccountImportParseResult,
-  EmailAccountProvider,
-  EmailAccountRecord,
-  EmailReceiveTestResult,
-} from "./credentialStore";
 
 function notifyAuthExpired() {
   localStorage.removeItem(SESSION_KEY);
@@ -31,7 +25,7 @@ async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<
 interface EmailAccountApiResponse {
   id: string;
   name: string;
-  provider: EmailAccountProvider;
+  provider: string;
   address: string | null;
   description: string;
   credential_data: Record<string, any>;
@@ -42,14 +36,69 @@ interface EmailAccountApiResponse {
   updated_at: string;
 }
 
-export { EMAIL_ACCOUNT_PROVIDERS, parseEmailAccountImportText } from "./credentialStore";
-export type { EmailAccountProvider, EmailAccountRecord, EmailReceiveTestResult, EmailAccountImportParseResult } from "./credentialStore";
+export type EmailAccountProvider = string;
+
+export interface EmailProviderFieldDefinition {
+  key: string;
+  label: string;
+  inputType: string;
+  placeholder: string;
+  required: boolean;
+  preserveOnBlank: boolean;
+}
+
+export interface EmailProviderDefinition {
+  key: string;
+  label: string;
+  description: string;
+  importHint: string;
+  manualImportEnabled: boolean;
+  supportsOAuth: boolean;
+  supportsTestReceive: boolean;
+  accountFields: EmailProviderFieldDefinition[];
+}
+
+export interface EmailAccountRecord {
+  id: string;
+  name: string;
+  site: string;
+  provider: EmailAccountProvider;
+  description: string;
+  is_visible: boolean;
+  is_valid: boolean;
+  last_used: string | null;
+  created_at: string;
+  updated_at: string;
+  address: string;
+  identifier: string;
+  accountTag: string;
+  username: string;
+  authType: string;
+  credential_data: Record<string, any>;
+}
+
+export interface EmailReceiveTestResult {
+  success: boolean;
+  provider: string;
+  host: string;
+  port: number;
+  secure: boolean;
+  mailbox: string;
+  mailbox_count: number;
+  message_count: number;
+  message: string;
+}
+
+export interface EmailAccountImportResult {
+  count: number;
+}
+
+export interface EmailAccountBulkDeleteResult {
+  deleted: number;
+}
 
 function normalizeProvider(value: string): EmailAccountProvider {
-  const normalized = value.trim().toLowerCase();
-  if (normalized === "inboxes") return "inboxes";
-  if (normalized === "generator.email") return "generator.email";
-  return "imap";
+  return value.trim().toLowerCase() || "imap";
 }
 
 function normalizeEmailAddress(value: string): string {
@@ -97,6 +146,29 @@ function toEmailAccountRecord(credential: EmailAccountApiResponse): EmailAccount
 export async function fetchEmailAccounts(): Promise<EmailAccountRecord[]> {
   const list = await apiCall<EmailAccountApiResponse[]>("/api/email-accounts");
   return list.map(toEmailAccountRecord);
+}
+
+export async function fetchEmailProviders(): Promise<EmailProviderDefinition[]> {
+  return apiCall<EmailProviderDefinition[]>("/api/email-accounts/providers");
+}
+
+export async function importEmailAccounts(
+  provider: EmailAccountProvider,
+  rawText: string,
+  options?: {
+    description?: string;
+    is_visible?: boolean;
+  },
+): Promise<EmailAccountImportResult> {
+  return apiCall<EmailAccountImportResult>("/api/email-accounts/import", {
+    method: "POST",
+    body: JSON.stringify({
+      provider,
+      raw_text: rawText,
+      description: options?.description,
+      is_visible: options?.is_visible ?? true,
+    }),
+  });
 }
 
 export async function createEmailAccount(
@@ -166,6 +238,13 @@ export async function updateEmailAccount(
 
 export async function deleteEmailAccount(id: string): Promise<void> {
   await apiCall(`/api/email-accounts/${id}`, { method: "DELETE" });
+}
+
+export async function deleteEmailAccounts(ids: string[]): Promise<EmailAccountBulkDeleteResult> {
+  return apiCall<EmailAccountBulkDeleteResult>("/api/email-accounts/bulk-delete", {
+    method: "POST",
+    body: JSON.stringify({ ids }),
+  });
 }
 
 export async function testEmailAccountReceive(id: string): Promise<EmailReceiveTestResult> {

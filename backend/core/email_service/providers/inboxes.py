@@ -20,6 +20,10 @@ from ..models import (
 class InboxesEmailProvider(EmailProvider):
     provider_type = EmailProviderType.INBOXES
     implementation = "inboxes_rest_v2"
+    display_name = "Inboxes"
+    provider_description = "通过 inboxes.com API 动态创建邮箱并读取邮件。"
+    import_hint = "运行时自动创建并入池"
+    manual_import_enabled = False
 
     def __init__(self) -> None:
         self.base_url = "https://inboxes.com/api/v2"

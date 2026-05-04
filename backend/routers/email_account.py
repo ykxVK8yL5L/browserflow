@@ -1,22 +1,66 @@
 """Email account 路由。"""
 
+import asyncio
 from datetime import datetime
 import imaplib
 import json
 import socket
+from types import SimpleNamespace
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from core.email_service.providers.outlook import OutlookEmailProvider
 from core.email_service.presets import EmailProviderPresetStore
+from core.email_service.service import EmailService
 from models.database import get_db
 from models.db_models import EmailAccountModel, UserModel
 from routers.auth import get_current_user
 from utils.auth_utils import decrypt_data, encrypt_data
 
 router = APIRouter(prefix="/api/email-accounts", tags=["email-accounts"])
+email_service = EmailService()
+
+
+class EmailProviderFieldResponse(BaseModel):
+    key: str
+    label: str
+    inputType: str
+    placeholder: str
+    required: bool
+    preserveOnBlank: bool
+
+
+class EmailProviderDefinitionResponse(BaseModel):
+    key: str
+    label: str
+    description: str
+    importHint: str
+    manualImportEnabled: bool
+    supportsOAuth: bool
+    supportsTestReceive: bool
+    accountFields: list[EmailProviderFieldResponse]
+
+
+class EmailAccountImportRequest(BaseModel):
+    provider: str = Field(..., min_length=1, max_length=64)
+    raw_text: str = Field(..., min_length=1)
+    description: Optional[str] = None
+    is_visible: bool = True
+
+
+class EmailAccountImportResponse(BaseModel):
+    count: int
+
+
+class EmailAccountBulkDeleteRequest(BaseModel):
+    ids: list[str] = Field(..., min_length=1)
+
+
+class EmailAccountBulkDeleteResponse(BaseModel):
+    deleted: int
 
 
 class EmailAccountCreate(BaseModel):
@@ -79,6 +123,32 @@ class EmailReceiveTestResponse(BaseModel):
     mailbox_count: int
     message_count: int
     message: str
+
+
+@router.get("/providers", response_model=List[EmailProviderDefinitionResponse])
+async def list_email_providers(
+    user: UserModel = Depends(get_current_user),
+):
+    del user
+    return [
+        EmailProviderDefinitionResponse.model_validate(item.to_dict())
+        for item in email_service.list_provider_definitions()
+    ]
+
+
+@router.post("/import", response_model=EmailAccountImportResponse)
+async def import_email_accounts(
+    data: EmailAccountImportRequest,
+    user: UserModel = Depends(get_current_user),
+):
+    imported = email_service.import_accounts(
+        user_id=user.id,
+        provider_key=data.provider,
+        raw_text=data.raw_text,
+        description=data.description,
+        is_visible=data.is_visible,
+    )
+    return EmailAccountImportResponse(count=len(imported))
 
 
 SENSITIVE_CREDENTIAL_KEYS = {
@@ -366,6 +436,35 @@ async def delete_email_account(
     return {"message": "Email account deleted successfully"}
 
 
+@router.post("/bulk-delete", response_model=EmailAccountBulkDeleteResponse)
+async def bulk_delete_email_accounts(
+    data: EmailAccountBulkDeleteRequest,
+    user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    ids = [str(item).strip() for item in data.ids if str(item).strip()]
+    if not ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email account ids are required",
+        )
+
+    accounts = (
+        db.query(EmailAccountModel)
+        .filter(
+            EmailAccountModel.user_id == user.id,
+            EmailAccountModel.id.in_(ids),
+        )
+        .all()
+    )
+
+    for account in accounts:
+        db.delete(account)
+
+    db.commit()
+    return EmailAccountBulkDeleteResponse(deleted=len(accounts))
+
+
 @router.post(
     "/{account_id}/test-email-receive", response_model=EmailReceiveTestResponse
 )
@@ -388,10 +487,116 @@ async def test_email_receive(
 
     credential_data = decrypt_credential_data(account.credential_data, user.id)
     provider = extract_provider(credential_data, account.provider)
+    if provider == "outlook":
+        address = extract_address(credential_data)
+        client_id = str(
+            credential_data.get("clientId") or credential_data.get("client_id") or ""
+        ).strip()
+        refresh_token = str(
+            credential_data.get("refreshToken")
+            or credential_data.get("refresh_token")
+            or ""
+        ).strip()
+        password = str(credential_data.get("password") or "").strip()
+
+        if not address or not client_id or not refresh_token:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="当前 Outlook 账号缺少邮箱地址、Client ID 或 Refresh Token，无法测试收信",
+            )
+
+        provider_impl = OutlookEmailProvider()
+        provider_account = SimpleNamespace(
+            metadata={
+                "clientId": client_id,
+                "tenant": str(credential_data.get("tenant") or "common").strip()
+                or "common",
+                **(
+                    {"scopes": credential_data.get("scopes")}
+                    if credential_data.get("scopes")
+                    else {}
+                ),
+                **(
+                    {"tokenExpiresAt": credential_data.get("tokenExpiresAt")}
+                    if credential_data.get("tokenExpiresAt")
+                    else {}
+                ),
+                **(
+                    {"expiresAt": credential_data.get("expiresAt")}
+                    if credential_data.get("expiresAt")
+                    else {}
+                ),
+            },
+            secrets={
+                "refreshToken": refresh_token,
+                **(
+                    {"accessToken": credential_data.get("accessToken")}
+                    if credential_data.get("accessToken")
+                    else {}
+                ),
+                **({"password": password} if password else {}),
+            },
+            auth_type=str(credential_data.get("authType") or "oauth2").strip()
+            or "oauth2",
+        )
+
+        try:
+            token_data = await asyncio.to_thread(
+                provider_impl._ensure_access_token,
+                provider_account,
+                client_id,
+                refresh_token,
+            )
+            access_token = str(token_data.get("access_token") or "").strip()
+            next_refresh_token = str(
+                token_data.get("refresh_token") or refresh_token
+            ).strip()
+            expires_at = str(token_data.get("expires_at") or "").strip()
+            mailbox_name = "inbox"
+            messages = await asyncio.to_thread(
+                provider_impl._fetch_messages,
+                access_token,
+                mailbox_name,
+            )
+
+            merged_data = dict(credential_data)
+            merged_data["refreshToken"] = next_refresh_token
+            merged_data["accessToken"] = access_token
+            merged_data["clientId"] = client_id
+            merged_data["tenant"] = provider_account.metadata.get("tenant") or "common"
+            if expires_at:
+                merged_data["tokenExpiresAt"] = expires_at
+            account.credential_data = encrypt_credential_data(merged_data, user.id)
+            account.is_valid = True
+            account.last_used = datetime.utcnow()
+            account.updated_at = datetime.utcnow()
+            db.commit()
+
+            return EmailReceiveTestResponse(
+                success=True,
+                provider=provider,
+                host="graph.microsoft.com",
+                port=443,
+                secure=True,
+                mailbox=mailbox_name,
+                mailbox_count=1,
+                message_count=len(messages),
+                message="Outlook 收信测试成功",
+            )
+        except Exception as error:
+            account.is_valid = False
+            account.updated_at = datetime.utcnow()
+            db.commit()
+            detail = str(error).strip() or "收信测试失败"
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Outlook 收信测试失败: {detail}",
+            ) from error
+
     if provider != "imap":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="当前仅支持测试 IMAP 收信能力",
+            detail="当前仅支持测试 IMAP / Outlook 收信能力",
         )
 
     username = str(

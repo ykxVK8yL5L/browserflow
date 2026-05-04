@@ -8,8 +8,59 @@ from typing import Any
 
 class EmailProviderType(str, Enum):
     IMAP = "imap"
+    OUTLOOK = "outlook"
     INBOXES = "inboxes"
     GENERATOR_EMAIL = "generator.email"
+
+
+@dataclass
+class EmailProviderField:
+    key: str
+    label: str
+    input_type: str = "text"
+    placeholder: str = ""
+    required: bool = False
+    preserve_on_blank: bool = False
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "key": self.key,
+            "label": self.label,
+            "inputType": self.input_type,
+            "placeholder": self.placeholder,
+            "required": self.required,
+            "preserveOnBlank": self.preserve_on_blank,
+        }
+
+
+@dataclass
+class EmailProviderDefinition:
+    key: str
+    label: str
+    description: str
+    import_hint: str
+    manual_import_enabled: bool
+    supports_oauth: bool
+    supports_test_receive: bool
+    account_fields: list[EmailProviderField] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "key": self.key,
+            "label": self.label,
+            "description": self.description,
+            "importHint": self.import_hint,
+            "manualImportEnabled": self.manual_import_enabled,
+            "supportsOAuth": self.supports_oauth,
+            "supportsTestReceive": self.supports_test_receive,
+            "accountFields": [field.to_dict() for field in self.account_fields],
+        }
+
+
+@dataclass
+class EmailProviderImportResult:
+    description: str
+    items: list[dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass

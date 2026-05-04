@@ -33,6 +33,16 @@ import IdentityManager from "@/components/flow/IdentityManager";
 import SystemSettings from "@/components/flow/SystemSettings";
 import ScheduleDialog from "@/components/flow/ScheduleDialog";
 import SecuritySettings from "@/components/security/SecuritySettings";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -58,6 +68,10 @@ import { getSchedules, toggleSchedule, type Schedule } from "@/lib/scheduleApi";
 import { downloadSystemBackup, getSystemSettings, restoreSystemBackup, updateSystemSettings } from "@/lib/systemApi";
 import { getTemplateSettings, updateTemplateSettings } from "@/lib/templateApi";
 import { toast } from "sonner";
+
+type DeleteFlowDialogState =
+  | { open: false }
+  | { open: true; flowId: string; flowName: string };
 
 const FlowList = () => {
   const [flows, setFlows] = useState<Flow[]>([]);
@@ -106,6 +120,7 @@ const FlowList = () => {
   const [autoSaveIntervalSeconds, setAutoSaveIntervalSeconds] = useState(10);
   const [templateFeatureEnabled, setTemplateFeatureEnabled] = useState(true);
   const [templateIndexUrl, setTemplateIndexUrl] = useState("");
+  const [deleteFlowDialog, setDeleteFlowDialog] = useState<DeleteFlowDialogState>({ open: false });
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -280,6 +295,20 @@ const FlowList = () => {
     } finally {
       setSaving(false);
     }
+  };
+
+  const requestDeleteFlow = (flow: Flow) => {
+    setDeleteFlowDialog({
+      open: true,
+      flowId: flow.id,
+      flowName: flow.name,
+    });
+  };
+
+  const handleConfirmDeleteFlow = async () => {
+    if (!deleteFlowDialog.open) return;
+    await handleDelete(deleteFlowDialog.flowId);
+    setDeleteFlowDialog({ open: false });
   };
 
   const handleEditSave = async () => {
@@ -670,7 +699,7 @@ const FlowList = () => {
                       <Pencil size={14} />
                     </button>
                     <button
-                      onClick={() => handleDelete(flow.id)}
+                      onClick={() => requestDeleteFlow(flow)}
                       className="p-2 rounded-md hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
                       title="Delete"
                     >
@@ -902,6 +931,32 @@ const FlowList = () => {
           onSystemBackupDownload={() => void handleSystemBackupDownload()}
           onRestoreUpload={handleRestoreUpload}
         />
+
+        <AlertDialog
+          open={deleteFlowDialog.open}
+          onOpenChange={(next) => {
+            if (!next) {
+              setDeleteFlowDialog({ open: false });
+            }
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>确认删除 Flow</AlertDialogTitle>
+              <AlertDialogDescription>
+                {deleteFlowDialog.open
+                  ? `确定要删除 Flow“${deleteFlowDialog.flowName}”吗？此操作不可撤销。`
+                  : "确定要删除此 Flow 吗？此操作不可撤销。"}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={saving}>取消</AlertDialogCancel>
+              <AlertDialogAction onClick={() => void handleConfirmDeleteFlow()} disabled={saving}>
+                {saving ? "删除中..." : "确认删除"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </>
   );

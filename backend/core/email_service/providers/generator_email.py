@@ -22,6 +22,10 @@ from ..models import (
 class GeneratorEmailProvider(EmailProvider):
     provider_type = EmailProviderType.GENERATOR_EMAIL
     implementation = "generator_email_html"
+    display_name = "Generator.Email"
+    provider_description = "通过 generator.email 页面动态生成邮箱并抓取邮件。"
+    import_hint = "运行时自动创建并入池"
+    manual_import_enabled = False
 
     def __init__(self) -> None:
         self.base_url = "https://generator.email"

@@ -5,6 +5,7 @@ from .providers import (
     GeneratorEmailProvider,
     ImapEmailProvider,
     InboxesEmailProvider,
+    OutlookEmailProvider,
 )
 
 
@@ -24,10 +25,14 @@ class EmailProviderRegistry:
     def keys(self) -> list[str]:
         return list(self._providers.keys())
 
+    def providers(self) -> list[EmailProvider]:
+        return list(self._providers.values())
+
 
 def build_default_email_provider_registry() -> EmailProviderRegistry:
     registry = EmailProviderRegistry()
     registry.register(ImapEmailProvider())
+    registry.register(OutlookEmailProvider())
     registry.register(InboxesEmailProvider())
     registry.register(GeneratorEmailProvider())
     return registry

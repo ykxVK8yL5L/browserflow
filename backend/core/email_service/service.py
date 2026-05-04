@@ -13,6 +13,8 @@ from .models import (
     EmailAccountRecord,
     EmailAddressInfo,
     EmailOperationPlan,
+    EmailProviderDefinition,
+    EmailProviderImportResult,
     EmailProviderContext,
     EmailProviderRequest,
 )
@@ -101,6 +103,113 @@ class EmailService:
     def dispatch_get_email(self, request: EmailProviderRequest) -> EmailOperationPlan:
         provider = self.get_provider(request.provider)
         return provider.build_get_email_plan(request, self.build_context())
+
+    def list_provider_definitions(self) -> list[EmailProviderDefinition]:
+        return [provider.get_definition() for provider in self.registry.providers()]
+
+    def parse_import_text(
+        self,
+        provider_key: str,
+        raw_text: str,
+    ) -> EmailProviderImportResult:
+        provider = self.get_provider(provider_key)
+        return provider.parse_import_text(raw_text)
+
+    def import_accounts(
+        self,
+        *,
+        user_id: str,
+        provider_key: str,
+        raw_text: str,
+        description: str | None = None,
+        is_visible: bool = True,
+    ) -> list[EmailAccountRecord]:
+        result = self.parse_import_text(provider_key, raw_text)
+        imported: list[EmailAccountRecord] = []
+        for payload in result.items:
+            imported.append(
+                self._upsert_account_from_payload(
+                    user_id=user_id,
+                    provider_key=provider_key,
+                    payload=payload,
+                    description=description or result.description,
+                    is_visible=is_visible,
+                )
+            )
+        return imported
+
+    def _upsert_account_from_payload(
+        self,
+        *,
+        user_id: str,
+        provider_key: str,
+        payload: dict[str, Any],
+        description: str,
+        is_visible: bool,
+    ) -> EmailAccountRecord:
+        normalized_provider = (
+            str(payload.get("provider") or payload.get("type") or provider_key)
+            .strip()
+            .lower()
+        )
+        normalized_address = (
+            str(
+                payload.get("address")
+                or payload.get("email")
+                or payload.get("identifier")
+                or ""
+            )
+            .strip()
+            .lower()
+            or None
+        )
+        normalized_identifier = (
+            str(payload.get("identifier") or normalized_address or "").strip() or None
+        )
+        normalized_tag = (
+            str(payload.get("accountTag") or payload.get("account_tag") or "").strip()
+            or normalized_address
+            or normalized_identifier
+            or normalized_provider
+        )
+        auth_type = (
+            str(payload.get("authType") or payload.get("auth_type") or "").strip()
+            or None
+        )
+
+        reserved_keys = {
+            "provider",
+            "type",
+            "identifier",
+            "accountTag",
+            "account_tag",
+            "address",
+            "email",
+            "username",
+            "authType",
+            "auth_type",
+        }
+        secrets = self._extract_account_secrets(payload)
+        metadata = {
+            key: value
+            for key, value in payload.items()
+            if key not in reserved_keys and key not in secrets
+        }
+
+        return self.upsert_account(
+            user_id=user_id,
+            provider=normalized_provider,
+            address=normalized_address,
+            identifier=normalized_identifier,
+            auth_type=auth_type,
+            secrets=secrets,
+            metadata=metadata,
+            account_tag=normalized_tag,
+            name=normalized_tag,
+            description=description,
+            is_visible=is_visible,
+            is_valid=True,
+        )
 
     def _decrypt_credential_payload(
         self, encrypted_data: str, user_id: str

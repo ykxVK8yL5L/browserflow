@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 from datetime import datetime, timezone
 from typing import Any
@@ -52,6 +53,176 @@ def _parse_datetime(value: Any) -> datetime | None:
     if parsed.tzinfo is None:
         return parsed.replace(tzinfo=timezone.utc)
     return parsed.astimezone(timezone.utc)
+
+
+def _safe_bool(value: Any, default: bool = True) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return default
+    normalized = str(value).strip().lower()
+    if normalized in {"true", "1", "yes", "y", "on"}:
+        return True
+    if normalized in {"false", "0", "no", "n", "off"}:
+        return False
+    return default
+
+
+def _parse_json_object(raw_value: Any, field_name: str) -> dict[str, Any]:
+    if raw_value in (None, ""):
+        return {}
+    if isinstance(raw_value, dict):
+        return raw_value
+    if not isinstance(raw_value, str):
+        raise ValueError(f"{field_name} 必须是 JSON 对象")
+
+    parsed = json.loads(raw_value)
+    if not isinstance(parsed, dict):
+        raise ValueError(f"{field_name} 必须是 JSON 对象")
+    return parsed
+
+
+def _resolve_save_source(ctx, data: dict, predecessor_output: Any) -> dict[str, Any]:
+    source = data.get("source")
+    if isinstance(source, dict):
+        return source
+
+    if isinstance(source, str):
+        source_node_id = source.strip()
+        if source_node_id:
+            source_payload = ctx.outputs.get(source_node_id)
+            if isinstance(source_payload, dict):
+                return source_payload
+            raise ValueError(f"未找到可保存的邮箱来源节点输出: {source_node_id}")
+
+    if isinstance(predecessor_output, dict):
+        return predecessor_output
+
+    raise ValueError("save_email 需要来源节点输出，可填写 source 或串联在邮箱节点之后")
+
+
+def _collect_source_secrets(source_payload: dict[str, Any]) -> dict[str, Any]:
+    secret_keys = {
+        "password",
+        "token",
+        "accessToken",
+        "refreshToken",
+        "clientSecret",
+        "secret",
+        "cookies",
+        "userId",
+        "user_id",
+    }
+    secrets: dict[str, Any] = {}
+    for key in secret_keys:
+        value = source_payload.get(key)
+        if value not in (None, "", [], {}):
+            secrets[key] = value
+    return secrets
+
+
+def _build_save_payload(source_payload: dict[str, Any], data: dict) -> dict[str, Any]:
+    account = source_payload.get("account") or {}
+    target = source_payload.get("target") or {}
+    target_account = target.get("account") if isinstance(target, dict) else {}
+    if not isinstance(account, dict):
+        account = {}
+    if not isinstance(target_account, dict):
+        target_account = {}
+
+    provider = (
+        str(
+            data.get("provider")
+            or source_payload.get("provider")
+            or account.get("provider")
+            or target_account.get("provider")
+            or ""
+        )
+        .strip()
+        .lower()
+    )
+    if not provider:
+        raise ValueError("save_email 缺少 provider")
+
+    email_address = (
+        str(
+            data.get("emailAddress")
+            or source_payload.get("emailAddress")
+            or source_payload.get("address")
+            or account.get("address")
+            or target.get("resolvedAddress")
+            or target_account.get("address")
+            or source_payload.get("identifier")
+            or ""
+        )
+        .strip()
+        .lower()
+    )
+    if not email_address:
+        raise ValueError("save_email 缺少邮箱地址")
+
+    identifier = str(
+        data.get("identifier")
+        or source_payload.get("identifier")
+        or account.get("identifier")
+        or target_account.get("identifier")
+        or email_address
+    ).strip()
+    account_tag = str(
+        data.get("accountTag")
+        or source_payload.get("accountTag")
+        or account.get("accountTag")
+        or target_account.get("accountTag")
+        or email_address
+    ).strip()
+    auth_type = (
+        str(
+            data.get("authType")
+            or source_payload.get("authType")
+            or account.get("authType")
+            or target_account.get("authType")
+            or ""
+        ).strip()
+        or None
+    )
+
+    metadata = {}
+    account_metadata = account.get("metadata")
+    if isinstance(account_metadata, dict):
+        metadata.update(account_metadata)
+    target_metadata = target.get("metadata")
+    if isinstance(target_metadata, dict):
+        metadata.update(target_metadata)
+    source_metadata = source_payload.get("metadata")
+    if isinstance(source_metadata, dict):
+        metadata.update(source_metadata)
+    metadata.update(
+        _parse_json_object(data.get("saveMetadataJson"), "saveMetadataJson")
+    )
+
+    if source_payload.get("surl") not in (None, ""):
+        metadata.setdefault("surl", source_payload.get("surl"))
+    if source_payload.get("baseUrl") not in (None, ""):
+        metadata.setdefault("baseUrl", source_payload.get("baseUrl"))
+    if source_payload.get("readUrl") not in (None, ""):
+        metadata.setdefault("readUrl", source_payload.get("readUrl"))
+
+    secrets = _collect_source_secrets(source_payload)
+    secrets.update(_parse_json_object(data.get("saveSecretsJson"), "saveSecretsJson"))
+
+    return {
+        "provider": provider,
+        "emailAddress": email_address,
+        "identifier": identifier,
+        "accountTag": account_tag,
+        "authType": auth_type,
+        "metadata": metadata,
+        "secrets": secrets,
+        "name": str(data.get("saveName") or account_tag or email_address).strip(),
+        "description": str(data.get("saveDescription") or "").strip() or None,
+        "isVisible": _safe_bool(data.get("isVisible"), True),
+        "isValid": _safe_bool(data.get("isValid"), True),
+    }
 
 
 def _resolve_time_config(ctx, data: dict) -> dict[str, Any]:
@@ -113,7 +284,7 @@ async def handle_email_node(
     address_type = str(data.get("addressType") or "primary").strip().lower()
     email_service = get_email_service()
 
-    if not provider:
+    if action != "save_email" and not provider:
         raise ValueError("email 节点缺少 provider")
 
     if action == "get_address":
@@ -210,6 +381,40 @@ async def handle_email_node(
         }
         if not matched:
             result.message = execution_result.get("reason") or "Email not found"
+        ctx.outputs[node_id] = result.data
+        return
+
+    if action == "save_email":
+        source_payload = _resolve_save_source(ctx, data, __)
+        save_payload = _build_save_payload(source_payload, data)
+        saved_account = email_service.upsert_account(
+            user_id=user_id,
+            provider=save_payload["provider"],
+            address=save_payload["emailAddress"],
+            identifier=save_payload["identifier"],
+            auth_type=save_payload["authType"],
+            secrets=save_payload["secrets"],
+            metadata=save_payload["metadata"],
+            account_tag=save_payload["accountTag"],
+            name=save_payload["name"],
+            description=save_payload["description"],
+            is_visible=save_payload["isVisible"],
+            is_valid=save_payload["isValid"],
+        )
+        result.message = "Email saved"
+        result.data = {
+            "result": saved_account.address or saved_account.identifier or "",
+            "provider": saved_account.provider,
+            "emailAddress": saved_account.address,
+            "identifier": saved_account.identifier,
+            "accountTag": saved_account.account_tag,
+            "authType": saved_account.auth_type,
+            "persisted": True,
+            "credentialId": saved_account.credential_id,
+            "account": saved_account.to_dict(),
+            "source": source_payload,
+            "savedAt": _iso_utc_now(),
+        }
         ctx.outputs[node_id] = result.data
         return
 

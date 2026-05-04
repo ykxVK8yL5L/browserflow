@@ -16,6 +16,7 @@ const EmailNode: NodeTypeConfig = {
       options: [
         { label: "获取邮箱地址", value: "get_address" },
         { label: "获取邮件", value: "get_email" },
+        { label: "保存邮箱到账号池", value: "save_email" },
       ],
       defaultValue: "get_address",
       valueSource: "params",
@@ -32,14 +33,21 @@ const EmailNode: NodeTypeConfig = {
       },
     },
     {
+      key: "source",
+      label: "Source",
+      type: "text",
+      placeholder: "emailNode 或 ${emailNode}",
+      defaultValue: "",
+      valueSource: "params",
+      visibleWhen: {
+        action: "save_email",
+      },
+    },
+    {
       key: "provider",
       label: "Provider",
       type: "select",
-      options: [
-        { label: "IMAP", value: "imap" },
-        { label: "Inboxes", value: "inboxes" },
-        { label: "Generator.Email", value: "generator.email" },
-      ],
+      optionsSource: "emailProviders",
       defaultValue: "imap",
       valueSource: "params",
     },
@@ -64,6 +72,92 @@ const EmailNode: NodeTypeConfig = {
       placeholder: "可选，用于限定某类邮箱账号",
       defaultValue: "",
       valueSource: "params",
+    },
+    {
+      key: "identifier",
+      label: "Identifier",
+      type: "text",
+      placeholder: "可选，默认取 emailAddress",
+      defaultValue: "",
+      valueSource: "params",
+      visibleWhen: {
+        action: "save_email",
+      },
+    },
+    {
+      key: "authType",
+      label: "Auth Type",
+      type: "text",
+      placeholder: "可选，例如 cookie / password / oauth2",
+      defaultValue: "",
+      valueSource: "params",
+      visibleWhen: {
+        action: "save_email",
+      },
+    },
+    {
+      key: "saveName",
+      label: "Save Name",
+      type: "text",
+      placeholder: "可选，默认 accountTag / emailAddress",
+      defaultValue: "",
+      valueSource: "params",
+      visibleWhen: {
+        action: "save_email",
+      },
+    },
+    {
+      key: "saveDescription",
+      label: "Save Description",
+      type: "text",
+      placeholder: "可选，例如 注册成功后保存",
+      defaultValue: "",
+      valueSource: "params",
+      visibleWhen: {
+        action: "save_email",
+      },
+    },
+    {
+      key: "saveMetadataJson",
+      label: "Save Metadata JSON",
+      type: "text",
+      placeholder: '{"key":"value"}',
+      defaultValue: "",
+      valueSource: "params",
+      visibleWhen: {
+        action: "save_email",
+      },
+    },
+    {
+      key: "saveSecretsJson",
+      label: "Save Secrets JSON",
+      type: "text",
+      placeholder: '{"userId":"xxx"}',
+      defaultValue: "",
+      valueSource: "params",
+      visibleWhen: {
+        action: "save_email",
+      },
+    },
+    {
+      key: "isVisible",
+      label: "Visible",
+      type: "checkbox",
+      defaultValue: true,
+      valueSource: "params",
+      visibleWhen: {
+        action: "save_email",
+      },
+    },
+    {
+      key: "isValid",
+      label: "Valid",
+      type: "checkbox",
+      defaultValue: true,
+      valueSource: "params",
+      visibleWhen: {
+        action: "save_email",
+      },
     },
     {
       key: "aliasLabel",

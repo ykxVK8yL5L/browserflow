@@ -48,7 +48,7 @@ export interface ImapAccountInput {
   is_visible?: boolean;
 }
 
-export type EmailAccountProvider = "imap" | "inboxes" | "generator.email";
+export type EmailAccountProvider = "imap" | "outlook" | "inboxes" | "generator.email";
 
 export interface EmailAccountRecord {
   id: string;
@@ -109,6 +109,13 @@ export const EMAIL_ACCOUNT_PROVIDERS: Array<{
     importHint: "邮箱----密码",
     description: "适用于普通 IMAP 邮箱账号导入。",
     supportsOAuth: false,
+  },
+  {
+    value: "outlook",
+    label: "Outlook",
+    importHint: "邮箱----密码----Client_ID----Refresh_Token",
+    description: "通过 Microsoft Graph + refresh_token 读取 Outlook 邮件。",
+    supportsOAuth: true,
   },
   {
     value: "inboxes",
@@ -244,6 +251,7 @@ export async function testEmailAccountReceive(id: string): Promise<EmailReceiveT
 
 function normalizeProvider(value: string): EmailAccountProvider {
   const normalized = value.trim().toLowerCase();
+  if (normalized === "outlook") return "outlook";
   if (normalized === "inboxes") return "inboxes";
   if (normalized === "generator.email") return "generator.email";
   return "imap";
@@ -332,6 +340,36 @@ export function parseEmailAccountImportText(
           address,
           username: address,
           password,
+        };
+      }),
+    };
+  }
+
+  if (provider === "outlook") {
+    return {
+      description: "Outlook OAuth imported account",
+      items: lines.map((line, index) => {
+        const parts = line.split("----");
+        const [rawAddress, rawPassword, rawClientId, ...refreshParts] = parts;
+        const address = normalizeEmailAddress(rawAddress || "");
+        const password = String(rawPassword || "").trim();
+        const clientId = String(rawClientId || "").trim();
+        const refreshToken = refreshParts.join("----").trim();
+        if (!address || !password || !clientId || !refreshToken) {
+          throw new Error(`第 ${index + 1} 行格式错误，应为 邮箱----密码----Client_ID----Refresh_Token`);
+        }
+        return {
+          provider: "outlook",
+          type: "outlook",
+          identifier: address,
+          accountTag: address,
+          address,
+          username: address,
+          password,
+          clientId,
+          refreshToken,
+          authType: "oauth2",
+          tenant: "common",
         };
       }),
     };

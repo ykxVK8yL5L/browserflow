@@ -12,6 +12,8 @@ from typing import Any
 from ..base import EmailProvider
 from ..models import (
     EmailOperationPlan,
+    EmailProviderField,
+    EmailProviderImportResult,
     EmailProviderContext,
     EmailProviderRequest,
     EmailProviderType,
@@ -24,9 +26,48 @@ from ..presets import EmailProviderPresetStore
 class ImapEmailProvider(EmailProvider):
     provider_type = EmailProviderType.IMAP
     implementation = "imap_protocol_pending"
+    display_name = "IMAP"
+    provider_description = "适用于普通 IMAP 邮箱账号导入。"
+    import_hint = "邮箱----密码"
+    manual_import_enabled = True
+    supports_test_receive = True
+    account_fields = [
+        EmailProviderField(
+            key="password",
+            label="密码",
+            input_type="password",
+            placeholder="留空则保持不变",
+            preserve_on_blank=True,
+        )
+    ]
 
     def __init__(self) -> None:
         self.preset_store = EmailProviderPresetStore()
+
+    def parse_import_text(self, raw_text: str) -> EmailProviderImportResult:
+        lines = self._normalize_import_lines(raw_text)
+        items: list[dict[str, Any]] = []
+        for index, line in enumerate(lines):
+            raw_address, *rest = line.split("----")
+            password = "----".join(rest).strip()
+            address = str(raw_address or "").strip().lower()
+            if not address or not password:
+                raise ValueError(f"第 {index + 1} 行格式错误，应为 邮箱----密码")
+            items.append(
+                {
+                    "provider": self.provider_type.value,
+                    "type": self.provider_type.value,
+                    "identifier": address,
+                    "accountTag": address,
+                    "address": address,
+                    "username": address,
+                    "password": password,
+                }
+            )
+        return EmailProviderImportResult(
+            description="IMAP imported account",
+            items=items,
+        )
 
     def supports_preset_domain(self, domain: str) -> bool:
         return self.preset_store.match_by_domain(domain) is not None
@@ -175,6 +216,7 @@ class ImapEmailProvider(EmailProvider):
         payload["notes"] = [
             "通用 IMAP provider 作为未知域名兜底",
             "后续可根据账号凭证切换 password / oauth2 认证",
+            "get_address 只返回邮箱信息，不再自动保存到账号池",
         ]
         return self.build_plan(action="get_address", target=target, extra=payload)
 
@@ -222,27 +264,19 @@ class ImapEmailProvider(EmailProvider):
         if not address:
             raise ValueError("缺少 IMAP 邮箱地址")
 
-        account = context.upsert_account(
-            user_id=request.user_id,
-            provider=self.provider_type.value,
-            address=address,
-            identifier=address,
-            auth_type=(target.account.auth_type if target.account else "password"),
-            secrets=(target.account.secrets if target.account else None),
-            metadata=(target.account.metadata if target.account else None),
-            account_tag=request.account_tag or address,
-            name=request.account_tag or address,
-            description="imap account",
-        )
+        account_snapshot = self._build_account_snapshot(target)
+        auth_type = target.account.auth_type if target.account else "password"
 
         return {
             "provider": self.provider_type.value,
             "emailAddress": address,
             "identifier": address,
-            "authType": account.auth_type,
-            "persisted": True,
-            "credentialId": account.credential_id,
-            "account": account.to_dict(),
+            "authType": auth_type,
+            "persisted": False,
+            "credentialId": (
+                target.account.credential_id if target.account is not None else None
+            ),
+            "account": account_snapshot,
             "resolvedAt": datetime.now(timezone.utc).isoformat(),
         }
 
@@ -274,6 +308,7 @@ class ImapEmailProvider(EmailProvider):
         timeout_seconds = self._resolve_timeout_seconds(request)
         poll_seconds = self._resolve_poll_seconds(request)
         deadline = datetime.now(timezone.utc).timestamp() + timeout_seconds
+        since_dt = self._resolve_since_datetime(request)
 
         matched_message = None
         message_count = 0
@@ -287,6 +322,7 @@ class ImapEmailProvider(EmailProvider):
                 password,
                 mailbox,
                 socket.getdefaulttimeout() or timeout_seconds,
+                since_dt,
             )
             message_count = len(messages)
             matched_message = self._pick_message(messages, request)
@@ -403,6 +439,7 @@ class ImapEmailProvider(EmailProvider):
         password: str,
         mailbox: str,
         timeout_seconds: float,
+        since_dt: datetime | None = None,
     ) -> list[dict[str, Any]]:
         client = None
         previous_timeout = socket.getdefaulttimeout()
@@ -420,7 +457,8 @@ class ImapEmailProvider(EmailProvider):
             if select_status != "OK":
                 raise RuntimeError(f"无法访问邮箱文件夹: {mailbox}")
 
-            search_status, search_data = client.uid("search", None, "ALL")
+            search_criteria = self._build_imap_search_criteria(since_dt)
+            search_status, search_data = client.uid("search", None, *search_criteria)
             if search_status != "OK":
                 raise RuntimeError(f"无法搜索邮件: {mailbox}")
 
@@ -606,6 +644,12 @@ class ImapEmailProvider(EmailProvider):
             time_config.get("resolvedSinceTime") or time_config.get("sinceTime")
         )
         return self._parse_datetime(raw_since)
+
+    def _build_imap_search_criteria(self, since_dt: datetime | None) -> tuple[str, ...]:
+        if since_dt is None:
+            return ("ALL",)
+        normalized = since_dt.astimezone(timezone.utc)
+        return ("SINCE", normalized.strftime("%d-%b-%Y"))
 
     def _resolve_timeout_seconds(self, request: EmailProviderRequest) -> float:
         wait_config = request.wait_config or {}
