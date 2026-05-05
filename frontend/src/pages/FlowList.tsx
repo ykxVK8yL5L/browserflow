@@ -25,9 +25,12 @@ import {
   Bell,
   Download,
   Mails,
+  Files,
+  Ellipsis,
 } from "lucide-react";
 import CredentialsManager from "@/components/flow/CredentialsManager";
 import ImapAccountsManager from "@/components/flow/EmailAccountsManager";
+import FileManager from "@/components/flow/FileManager";
 import FlowNotificationsEditor from "@/components/flow/FlowNotificationsEditor";
 import IdentityManager from "@/components/flow/IdentityManager";
 import SystemSettings from "@/components/flow/SystemSettings";
@@ -43,6 +46,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -86,6 +95,7 @@ const FlowList = () => {
   const [selectedIdentityId, setSelectedIdentityId] = useState<string>("");
   const [credentialsOpen, setCredentialsOpen] = useState(false);
   const [imapAccountsOpen, setImapAccountsOpen] = useState(false);
+  const [fileManagerOpen, setFileManagerOpen] = useState(false);
   const [identitiesOpen, setIdentitiesOpen] = useState(false);
   const { user, logout } = useAuth();
   const isAdmin = user?.role === "admin";
@@ -552,13 +562,6 @@ const FlowList = () => {
           </span>
           <div className="ml-auto flex items-center gap-2">
             <button
-              onClick={() => setImapAccountsOpen(true)}
-              className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <Mails size={18} />
-            </button>
-
-            <button
               onClick={() => setIdentitiesOpen(true)}
               className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
               title="Manage Identities"
@@ -580,13 +583,30 @@ const FlowList = () => {
             >
               <Shield size={16} />
             </button>
-            <button
-              onClick={() => setSettingsOpen(true)}
-              className="p-2 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
-              title={isAdmin ? "Settings" : "Backup & Tools"}
-            >
-              <Settings size={16} />
-            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="p-2 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                  title="More"
+                >
+                  <Ellipsis size={16} />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={() => setFileManagerOpen(true)}>
+                  <Files size={14} className="mr-2" />
+                  Files
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setImapAccountsOpen(true)}>
+                  <Mails size={14} className="mr-2" />
+                  Email
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSettingsOpen(true)}>
+                  <Settings size={14} className="mr-2" />
+                  {isAdmin ? "System Settings" : "Backup & Tools"}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <span className="text-xs text-muted-foreground font-mono ml-1 hidden sm:inline">
               {user?.username}
             </span>
@@ -850,6 +870,10 @@ const FlowList = () => {
         <ImapAccountsManager
           open={imapAccountsOpen}
           onClose={() => setImapAccountsOpen(false)}
+        />
+        <FileManager
+          open={fileManagerOpen}
+          onClose={() => setFileManagerOpen(false)}
         />
         <IdentityManager
           open={identitiesOpen}

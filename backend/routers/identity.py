@@ -5,10 +5,11 @@
 
 import os
 import shutil
+from pathlib import Path
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Literal, Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -64,6 +65,51 @@ class IdentityListResponse(BaseModel):
         from_attributes = True
 
 
+class IdentityStateResponse(BaseModel):
+    identity_id: str
+    path: str
+    content: str
+    size: int
+
+
+class IdentityStateSaveRequest(BaseModel):
+    content: str = ""
+
+
+class IdentityFileEntryResponse(BaseModel):
+    name: str
+    path: str
+    kind: Literal["file", "directory"]
+    size: int | None = None
+    updated_at: float
+
+
+class IdentityFileListResponse(BaseModel):
+    current_path: str
+    entries: list[IdentityFileEntryResponse]
+
+
+class IdentityFileContentResponse(BaseModel):
+    path: str
+    content: str
+    size: int
+
+
+class IdentitySaveFileRequest(BaseModel):
+    path: str = Field(..., min_length=1)
+    content: str = ""
+
+
+class IdentityCreateFolderRequest(BaseModel):
+    path: str = ""
+    name: str = Field(..., min_length=1, max_length=255)
+
+
+class IdentityRenamePathRequest(BaseModel):
+    path: str = Field(..., min_length=1)
+    new_path: str = Field(..., min_length=1)
+
+
 def get_identity_dir(user_id: str, identity_id: str) -> str:
     return os.path.join(IDENTITY_STORAGE_ROOT, user_id, identity_id)
 
@@ -79,6 +125,40 @@ def ensure_identity_storage(identity: IdentityModel) -> None:
         identity.storage_path = ensure_identity_dir(identity.user_id, identity.id)
     else:
         identity.storage_path = None
+
+
+def _require_profile_identity(identity: IdentityModel) -> None:
+    if identity.type != "profile":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only profile identities support file management",
+        )
+
+
+def _get_identity_root(identity: IdentityModel) -> Path:
+    _require_profile_identity(identity)
+    return Path(ensure_identity_dir(identity.user_id, identity.id)).resolve()
+
+
+def _resolve_identity_path(identity_root: Path, raw_path: str | None) -> Path:
+    relative_path = (raw_path or "").strip()
+    if not relative_path:
+        return identity_root
+
+    candidate = Path(relative_path)
+    if candidate.is_absolute():
+        raise HTTPException(status_code=400, detail="不允许使用绝对路径")
+
+    target_path = (identity_root / candidate).resolve()
+    if target_path != identity_root and identity_root not in target_path.parents:
+        raise HTTPException(status_code=400, detail="文件路径越权")
+    return target_path
+
+
+def _to_identity_relative_path(identity_root: Path, target_path: Path) -> str:
+    if target_path == identity_root:
+        return ""
+    return target_path.relative_to(identity_root).as_posix()
 
 
 def get_identity_or_404(db: Session, user_id: str, identity_id: str) -> IdentityModel:
@@ -146,6 +226,268 @@ async def get_identity(
     db: Session = Depends(get_db),
 ):
     return get_identity_or_404(db, user.id, identity_id)
+
+
+@router.get("/{identity_id}/state", response_model=IdentityStateResponse)
+async def get_identity_state(
+    identity_id: str,
+    user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    identity = get_identity_or_404(db, user.id, identity_id)
+
+    dir_path = get_identity_dir(user.id, identity.id)
+    file_path = os.path.join(dir_path, "state.json")
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Identity state file not found")
+
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            content = f.read()
+    except UnicodeDecodeError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail="Identity state file is not a UTF-8 text file",
+        ) from exc
+
+    return IdentityStateResponse(
+        identity_id=identity.id,
+        path="state.json",
+        content=content,
+        size=os.path.getsize(file_path),
+    )
+
+
+@router.put("/{identity_id}/state", response_model=IdentityStateResponse)
+async def save_identity_state(
+    identity_id: str,
+    payload: IdentityStateSaveRequest,
+    user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    identity = get_identity_or_404(db, user.id, identity_id)
+    if identity.type not in {"file", "profile"}:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only file/profile identities support state files",
+        )
+
+    dir_path = ensure_identity_dir(user.id, identity.id)
+    file_path = os.path.join(dir_path, "state.json")
+    with open(file_path, "w", encoding="utf-8") as f:
+        f.write(payload.content)
+
+    identity.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(identity)
+
+    return IdentityStateResponse(
+        identity_id=identity.id,
+        path="state.json",
+        content=payload.content,
+        size=os.path.getsize(file_path),
+    )
+
+
+@router.get("/{identity_id}/files", response_model=IdentityFileListResponse)
+async def list_identity_files(
+    identity_id: str,
+    path: str = Query(default=""),
+    user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    identity = get_identity_or_404(db, user.id, identity_id)
+    identity_root = _get_identity_root(identity)
+    target_path = _resolve_identity_path(identity_root, path)
+
+    if not target_path.exists():
+        raise HTTPException(status_code=404, detail="目录不存在")
+    if not target_path.is_dir():
+        raise HTTPException(status_code=400, detail="目标不是目录")
+
+    entries: list[IdentityFileEntryResponse] = []
+    for entry in sorted(
+        target_path.iterdir(), key=lambda item: (not item.is_dir(), item.name.lower())
+    ):
+        stat = entry.stat()
+        entries.append(
+            IdentityFileEntryResponse(
+                name=entry.name,
+                path=_to_identity_relative_path(identity_root, entry),
+                kind="directory" if entry.is_dir() else "file",
+                size=None if entry.is_dir() else stat.st_size,
+                updated_at=stat.st_mtime,
+            )
+        )
+
+    return IdentityFileListResponse(
+        current_path=_to_identity_relative_path(identity_root, target_path),
+        entries=entries,
+    )
+
+
+@router.get("/{identity_id}/files/content", response_model=IdentityFileContentResponse)
+async def get_identity_file_content(
+    identity_id: str,
+    path: str = Query(..., min_length=1),
+    user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    identity = get_identity_or_404(db, user.id, identity_id)
+    identity_root = _get_identity_root(identity)
+    target_path = _resolve_identity_path(identity_root, path)
+    if not target_path.exists():
+        raise HTTPException(status_code=404, detail="文件不存在")
+    if not target_path.is_file():
+        raise HTTPException(status_code=400, detail="目标不是文件")
+
+    try:
+        content = target_path.read_text(encoding="utf-8")
+    except UnicodeDecodeError as exc:
+        raise HTTPException(
+            status_code=400, detail="当前仅支持编辑 UTF-8 文本文件"
+        ) from exc
+
+    return IdentityFileContentResponse(
+        path=_to_identity_relative_path(identity_root, target_path),
+        content=content,
+        size=target_path.stat().st_size,
+    )
+
+
+@router.put("/{identity_id}/files/content", response_model=IdentityFileContentResponse)
+async def save_identity_file_content(
+    identity_id: str,
+    payload: IdentitySaveFileRequest,
+    user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    identity = get_identity_or_404(db, user.id, identity_id)
+    identity_root = _get_identity_root(identity)
+    target_path = _resolve_identity_path(identity_root, payload.path)
+    if target_path.exists() and target_path.is_dir():
+        raise HTTPException(status_code=400, detail="目标是目录，不能保存为文件")
+
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    target_path.write_text(payload.content, encoding="utf-8")
+    return IdentityFileContentResponse(
+        path=_to_identity_relative_path(identity_root, target_path),
+        content=payload.content,
+        size=target_path.stat().st_size,
+    )
+
+
+@router.post("/{identity_id}/files/folders")
+async def create_identity_folder(
+    identity_id: str,
+    payload: IdentityCreateFolderRequest,
+    user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    identity = get_identity_or_404(db, user.id, identity_id)
+    identity_root = _get_identity_root(identity)
+    base_path = _resolve_identity_path(identity_root, payload.path)
+    if not base_path.exists():
+        raise HTTPException(status_code=404, detail="父目录不存在")
+    if not base_path.is_dir():
+        raise HTTPException(status_code=400, detail="父路径不是目录")
+
+    if "/" in payload.name or "\\" in payload.name or payload.name in {".", ".."}:
+        raise HTTPException(status_code=400, detail="目录名称不合法")
+
+    target_path = _resolve_identity_path(
+        identity_root,
+        f"{_to_identity_relative_path(identity_root, base_path)}/{payload.name}".strip(
+            "/"
+        ),
+    )
+    target_path.mkdir(parents=False, exist_ok=False)
+    return {
+        "message": "目录创建成功",
+        "path": _to_identity_relative_path(identity_root, target_path),
+    }
+
+
+@router.patch("/{identity_id}/files/rename")
+async def rename_identity_path(
+    identity_id: str,
+    payload: IdentityRenamePathRequest,
+    user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    identity = get_identity_or_404(db, user.id, identity_id)
+    identity_root = _get_identity_root(identity)
+    source_path = _resolve_identity_path(identity_root, payload.path)
+    target_path = _resolve_identity_path(identity_root, payload.new_path)
+
+    if not source_path.exists():
+        raise HTTPException(status_code=404, detail="源路径不存在")
+    if target_path.exists():
+        raise HTTPException(status_code=400, detail="目标路径已存在")
+
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    source_path.rename(target_path)
+    return {
+        "message": "重命名成功",
+        "path": _to_identity_relative_path(identity_root, target_path),
+    }
+
+
+@router.delete("/{identity_id}/files")
+async def delete_identity_path(
+    identity_id: str,
+    path: str = Query(..., min_length=1),
+    user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    identity = get_identity_or_404(db, user.id, identity_id)
+    identity_root = _get_identity_root(identity)
+    target_path = _resolve_identity_path(identity_root, path)
+    if not target_path.exists():
+        raise HTTPException(status_code=404, detail="目标不存在")
+    if target_path == identity_root:
+        raise HTTPException(status_code=400, detail="不能删除 identity 根目录")
+
+    if target_path.is_dir():
+        shutil.rmtree(target_path)
+    else:
+        target_path.unlink()
+    return {"message": "删除成功"}
+
+
+@router.post("/{identity_id}/files/upload")
+async def upload_identity_file(
+    identity_id: str,
+    file: UploadFile = File(...),
+    path: str = "",
+    user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="缺少文件名")
+
+    identity = get_identity_or_404(db, user.id, identity_id)
+    identity_root = _get_identity_root(identity)
+    base_path = _resolve_identity_path(identity_root, path)
+    if not base_path.exists():
+        raise HTTPException(status_code=404, detail="目标目录不存在")
+    if not base_path.is_dir():
+        raise HTTPException(status_code=400, detail="目标路径不是目录")
+
+    safe_name = Path(file.filename).name
+    target_path = _resolve_identity_path(
+        identity_root,
+        f"{_to_identity_relative_path(identity_root, base_path)}/{safe_name}".strip(
+            "/"
+        ),
+    )
+    content = await file.read()
+    target_path.write_bytes(content)
+    return {
+        "message": "上传成功",
+        "path": _to_identity_relative_path(identity_root, target_path),
+        "size": len(content),
+    }
 
 
 @router.put("/{identity_id}", response_model=IdentityResponse)

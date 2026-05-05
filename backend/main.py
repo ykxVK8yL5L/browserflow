@@ -34,6 +34,7 @@ from routers.flow import router as flow_router
 from routers.credential import router as credential_router
 from routers.email_account import router as email_account_router
 from routers.identity import router as identity_router
+from routers.file_manager import router as file_manager_router
 from routers.user_agent import router as user_agent_router
 from routers.execution import router as execution_router
 from routers.websocket import router as websocket_router
@@ -192,6 +193,7 @@ app.include_router(flow_router)
 app.include_router(credential_router)
 app.include_router(email_account_router)
 app.include_router(identity_router)
+app.include_router(file_manager_router)
 app.include_router(user_agent_router)
 app.include_router(execution_router)
 app.include_router(websocket_router)
