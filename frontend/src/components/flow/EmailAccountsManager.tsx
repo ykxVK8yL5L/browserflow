@@ -592,66 +592,67 @@ const EmailAccountsManager = ({ open, onClose }: EmailAccountsManagerProps) => {
 
                     <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[1.45fr_1fr]">
                         <div className="border-b lg:border-b-0 lg:border-r border-border flex flex-col min-h-0">
-                            <div className="p-5 space-y-3 shrink-0">
-                                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                                    <div>
-                                        <h3 className="font-mono text-sm text-foreground">账号列表</h3>
-                                        <p className="text-xs text-muted-foreground font-mono mt-1">
-                                            支持统一查看不同 provider 的邮箱账号
-                                        </p>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <Button variant="outline" size="sm" onClick={() => setMode("import")}>
-                                            <Upload size={14} />
-                                            导入账号
-                                        </Button>
-                                    </div>
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-[1fr_220px] gap-3">
-                                    <Input
-                                        value={keyword}
-                                        onChange={(event) => setKeyword(event.target.value)}
-                                        placeholder="搜索名称、provider、标签或邮箱地址"
-                                    />
-                                    <Select value={providerFilter} onValueChange={(value) => setProviderFilter(value as EmailAccountProvider | "all")}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="筛选 provider" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">全部 Provider</SelectItem>
-                                            {providers.map((item) => (
-                                                <SelectItem key={item.key} value={item.key}>{item.label}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="flex items-center justify-between text-xs font-mono text-muted-foreground">
-                                    <div className="flex items-center gap-3">
-                                        <span>共 {filteredAccounts.length} 条</span>
-                                        <label className="flex items-center gap-2 text-xs font-mono text-muted-foreground">
-                                            <Checkbox
-                                                checked={allFilteredSelected ? true : someFilteredSelected ? "indeterminate" : false}
-                                                onCheckedChange={(checked) => toggleSelectAllFiltered(checked === true)}
-                                            />
-                                            当前筛选全选
-                                        </label>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <span>已选 {selectedCount} 条</span>
-                                        <Button
-                                            variant="destructive"
-                                            size="sm"
-                                            onClick={requestBulkDelete}
-                                            disabled={selectedCount === 0 || submitting}
-                                        >
-                                            <Trash2 size={14} />
-                                            批量删除
-                                        </Button>
-                                    </div>
-                                </div>
-                            </div>
-
                             <ScrollArea className="flex-1 px-5 pb-5">
+                                <div className="p-5 space-y-3 shrink-0">
+                                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                                        <div>
+                                            <h3 className="font-mono text-sm text-foreground">账号列表</h3>
+                                            <p className="text-xs text-muted-foreground font-mono mt-1">
+                                                支持统一查看不同 provider 的邮箱账号
+                                            </p>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Button variant="outline" size="sm" onClick={() => setMode("import")}>
+                                                <Upload size={14} />
+                                                导入账号
+                                            </Button>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-[1fr_220px] gap-3">
+                                        <Input
+                                            value={keyword}
+                                            onChange={(event) => setKeyword(event.target.value)}
+                                            placeholder="搜索名称、provider、标签或邮箱地址"
+                                        />
+                                        <Select value={providerFilter} onValueChange={(value) => setProviderFilter(value as EmailAccountProvider | "all")}>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="筛选 provider" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="all">全部 Provider</SelectItem>
+                                                {providers.map((item) => (
+                                                    <SelectItem key={item.key} value={item.key}>{item.label}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="flex items-center justify-between text-xs font-mono text-muted-foreground">
+                                        <div className="flex items-center gap-3">
+                                            <span>共 {filteredAccounts.length} 条</span>
+                                            <label className="flex items-center gap-2 text-xs font-mono text-muted-foreground">
+                                                <Checkbox
+                                                    checked={allFilteredSelected ? true : someFilteredSelected ? "indeterminate" : false}
+                                                    onCheckedChange={(checked) => toggleSelectAllFiltered(checked === true)}
+                                                />
+                                                当前筛选全选
+                                            </label>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span>已选 {selectedCount} 条</span>
+                                            <Button
+                                                variant="destructive"
+                                                size="sm"
+                                                onClick={requestBulkDelete}
+                                                disabled={selectedCount === 0 || submitting}
+                                            >
+                                                <Trash2 size={14} />
+                                                批量删除
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+
+
                                 <div className="space-y-3 pr-4">
                                     {loading ? (
                                         <div className="py-20 text-center text-sm font-mono text-muted-foreground">正在加载邮箱账号...</div>
