@@ -1,0 +1,485 @@
+{
+  "name": "zo.computer保活",
+  "description": "",
+  "nodes": [
+    {
+      "id": "node_1777687236055",
+      "type": "navigate",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "打开网址",
+        "nodeType": "navigate",
+        "params": {
+          "url": "https://zo.computer"
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "url": "https://zo.computer",
+        "description": "https://zo.computer",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 3000
+      },
+      "position": {
+        "x": 15,
+        "y": 0
+      }
+    },
+    {
+      "id": "node_1777687236058",
+      "type": "check_existence",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "查检是否需要登陆",
+        "nodeType": "check_existence",
+        "params": {
+          "timeout": 30000,
+          "selector": "a:has-text('Log in')"
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "timeout": 30000,
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 0,
+        "selector": "a:has-text('Log in')"
+      },
+      "position": {
+        "x": -42.5,
+        "y": 177
+      }
+    },
+    {
+      "id": "node_1777687236060",
+      "type": "click",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "点击使用邮箱登陆",
+        "nodeType": "click",
+        "params": {
+          "selectorType": "native",
+          "selector": "button:has-text('Continue with email')",
+          "button": "middle",
+          "clickCount": 1,
+          "timeout": 30000
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "outputType": "void",
+        "selectorType": "native",
+        "selector": "button:has-text('Continue with email')",
+        "button": "middle",
+        "clickCount": 1,
+        "timeout": 30000,
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 2000
+      },
+      "position": {
+        "x": -175,
+        "y": 505
+      }
+    },
+    {
+      "id": "node_1777687236062",
+      "type": "type",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "输入邮箱",
+        "nodeType": "type",
+        "params": {
+          "selectorType": "native",
+          "selector": "#email",
+          "text": "{{credential:zo_computer}}",
+          "delay": 0,
+          "timeout": 30000
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "outputType": "void",
+        "selectorType": "native",
+        "selector": "#email",
+        "text": "{{credential:zo_computer}}",
+        "delay": 0,
+        "timeout": 30000,
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 1000
+      },
+      "position": {
+        "x": -175,
+        "y": 665
+      }
+    },
+    {
+      "id": "node_1777687236063",
+      "type": "click",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "点击继续",
+        "nodeType": "click",
+        "params": {
+          "selectorType": "native",
+          "selector": "button:has-text('Continue')",
+          "button": "middle",
+          "clickCount": 1,
+          "timeout": 30000
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "outputType": "void",
+        "selectorType": "native",
+        "selector": "button:has-text('Continue')",
+        "button": "middle",
+        "clickCount": 1,
+        "timeout": 30000,
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 2000
+      },
+      "position": {
+        "x": -175,
+        "y": 825
+      }
+    },
+    {
+      "id": "node_1777687236064",
+      "type": "waitForUser",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "请输入你获取的登陆网址!",
+        "nodeType": "waitForUser",
+        "params": {
+          "title": "请输入你获取的登陆网址!",
+          "message": "请输入你获取的登陆网址!",
+          "inputType": "text",
+          "placeholder": "",
+          "defaultValue": "",
+          "confirmText": "Submit",
+          "cancelText": "Cancel",
+          "required": true,
+          "timeoutMs": 0
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "outputType": "object",
+        "title": "请输入你获取的登陆网址!",
+        "message": "请输入你获取的登陆网址!",
+        "inputType": "text",
+        "placeholder": "",
+        "defaultValue": "",
+        "confirmText": "Submit",
+        "cancelText": "Cancel",
+        "required": true,
+        "timeoutMs": 0,
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 0
+      },
+      "position": {
+        "x": -172.5,
+        "y": 985
+      }
+    },
+    {
+      "id": "node_1777687236065",
+      "type": "navigate",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "跳转到登陆网址",
+        "nodeType": "navigate",
+        "params": {
+          "url": "${node_1777687236064.result}"
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "url": "${node_1777687236064.result}",
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 10000
+      },
+      "position": {
+        "x": -175,
+        "y": 1145
+      }
+    },
+    {
+      "id": "node_1777687236066",
+      "type": "wait",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "等待几秒后重新打开主页",
+        "nodeType": "wait",
+        "params": {
+          "duration": 5000
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "outputType": "void",
+        "duration": 5000,
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 0
+      },
+      "position": {
+        "x": -168.5,
+        "y": 1305
+      }
+    },
+    {
+      "id": "node_1777687236067",
+      "type": "navigate",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "跳转到登陆页面",
+        "nodeType": "navigate",
+        "params": {
+          "url": "https://www.zo.computer/signup?intent=login"
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "url": "https://www.zo.computer/signup?intent=login",
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 0
+      },
+      "position": {
+        "x": -175,
+        "y": 345
+      }
+    },
+    {
+      "id": "node_1777687236070",
+      "type": "navigate",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "重新跳转到主页",
+        "nodeType": "navigate",
+        "params": {
+          "url": "https://zo.computer"
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "url": "https://zo.computer",
+        "description": "此时应该已经登陆，登陆流程结束",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 2000
+      },
+      "position": {
+        "x": -166.5,
+        "y": 1465
+      }
+    },
+    {
+      "id": "node_1777687236071",
+      "type": "navigate",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": true,
+        "screenshotTiming": "after",
+        "label": "重新跳转到主页",
+        "nodeType": "navigate",
+        "params": {
+          "url": "${node_1777687236074.result}"
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "url": "${node_1777687236074.result}",
+        "description": "应该已经跳转到个人主页",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 10000
+      },
+      "position": {
+        "x": 0,
+        "y": 1982
+      }
+    },
+    {
+      "id": "node_1777687236074",
+      "type": "getAttribute",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "获取到主页链接的A标签的herf",
+        "nodeType": "getAttribute",
+        "params": {
+          "selectorType": "native",
+          "selector": "",
+          "attribute": "href"
+        },
+        "inputs": {
+          "target": {
+            "from": "${node_1777687236079.data}"
+          }
+        },
+        "stopOnFailure": true,
+        "outputType": "string",
+        "selectorType": "native",
+        "selector": "",
+        "attribute": "href",
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 1000
+      },
+      "position": {
+        "x": 0,
+        "y": 1802
+      }
+    },
+    {
+      "id": "node_1777687236079",
+      "type": "first",
+      "nodeType": null,
+      "data": {
+        "captureScreenshot": false,
+        "screenshotTiming": "after",
+        "label": "获取到个人主页的A链接",
+        "nodeType": "first",
+        "params": {
+          "selectorType": "native",
+          "selector": "a:has-text('Go to your Zo')"
+        },
+        "inputs": {},
+        "stopOnFailure": true,
+        "outputType": "locator",
+        "selectorType": "native",
+        "selector": "a:has-text('Go to your Zo')",
+        "description": "",
+        "disabled": false,
+        "waitBeforeMs": 0,
+        "waitAfterMs": 0
+      },
+      "position": {
+        "x": 0,
+        "y": 1642
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "xy-edge__node_1777687236055-node_1777687236058",
+      "source": "node_1777687236055",
+      "target": "node_1777687236058",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1777687236060-node_1777687236062",
+      "source": "node_1777687236060",
+      "target": "node_1777687236062",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1777687236062-node_1777687236063",
+      "source": "node_1777687236062",
+      "target": "node_1777687236063",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1777687236063-node_1777687236064",
+      "source": "node_1777687236063",
+      "target": "node_1777687236064",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1777687236064-node_1777687236065",
+      "source": "node_1777687236064",
+      "target": "node_1777687236065",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1777687236065-node_1777687236066",
+      "source": "node_1777687236065",
+      "target": "node_1777687236066",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1777687236058true-node_1777687236067",
+      "source": "node_1777687236058",
+      "target": "node_1777687236067",
+      "sourceHandle": "true",
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1777687236067-node_1777687236060",
+      "source": "node_1777687236067",
+      "target": "node_1777687236060",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1777687236066-node_1777687236070",
+      "source": "node_1777687236066",
+      "target": "node_1777687236070",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1777687236074-node_1777687236071",
+      "source": "node_1777687236074",
+      "target": "node_1777687236071",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1777687236070-node_1777687236079",
+      "source": "node_1777687236070",
+      "target": "node_1777687236079",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1777687236079-node_1777687236074",
+      "source": "node_1777687236079",
+      "target": "node_1777687236074",
+      "sourceHandle": null,
+      "targetHandle": null
+    },
+    {
+      "id": "xy-edge__node_1777687236058false-node_1777687236079",
+      "source": "node_1777687236058",
+      "target": "node_1777687236079",
+      "sourceHandle": "false",
+      "targetHandle": null
+    }
+  ],
+  "groups": [],
+  "exportedAt": "2026-05-06T01:03:46.532Z"
+}

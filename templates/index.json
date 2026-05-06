@@ -23,17 +23,24 @@
       "category": "code-snippets",
       "name": "全局字符串随机生成方法",
       "description": "生成与复用全局随机字符串的代码片段模板。",
-      "tags": ["字符串", "随机", "片段"],
+      "tags": [
+        "字符串",
+        "随机",
+        "片段"
+      ],
       "author": "官方",
       "sort_order": 10,
       "path": "code-snippets/全局字符串随机生成方法.json"
     },
-     {
+    {
       "id": "global-for-loop",
       "category": "code-snippets",
       "name": "For循环示例",
       "description": "For循环示例",
-      "tags": ["循环", "片段"],
+      "tags": [
+        "循环",
+        "片段"
+      ],
       "author": "官方",
       "sort_order": 10,
       "path": "code-snippets/For循环示例.json"
@@ -43,17 +50,24 @@
       "category": "code-snippets",
       "name": "滑动验证码",
       "description": "滑块验证码识别与拖动处理示例。",
-      "tags": ["验证码", "滑块", "自动化"],
+      "tags": [
+        "验证码",
+        "滑块",
+        "自动化"
+      ],
       "author": "官方",
       "sort_order": 20,
       "path": "code-snippets/滑动验证码.json"
     },
-     {
+    {
       "id": "file-read-write",
       "category": "code-snippets",
       "name": "文件读写",
       "description": "文件读写操作示例。敏感内容切记用变量不要用文本，避免泄露。",
-      "tags": ["文件","片段"],
+      "tags": [
+        "文件",
+        "片段"
+      ],
       "author": "官方",
       "sort_order": 20,
       "path": "code-snippets/文件读写示例.json"
@@ -63,7 +77,9 @@
       "category": "check-in",
       "name": "215签到",
       "description": "215 站点签到流程模板。需要在Credential中配置215站点的用户信息:215_username, 215_password。",
-      "tags": ["签到"],
+      "tags": [
+        "签到"
+      ],
       "author": "官方",
       "sort_order": 10,
       "path": "check-in/215签到.json"
@@ -73,27 +89,50 @@
       "category": "check-in",
       "name": "voapi签到",
       "description": "voapi 站点签到流程模板。需要在Credential中配置voapi站点的用户信息: voapi_username, voapi_password。",
-      "tags": ["签到", "voapi"],
+      "tags": [
+        "签到",
+        "voapi"
+      ],
       "author": "官方",
       "sort_order": 20,
       "path": "check-in/voapi签到.json"
+    },
+    {
+      "id": "zo-computer-check-in",
+      "category": "check-in",
+      "name": "zo.computer保活",
+      "description": "zo.computer 站点登陆保活流程模板。需要在Credential中配置zo.computer站点的用户信息: zo_computer,内容为注册的Email。FLow需要Identifier为File或Profile用来保存登陆状态.",
+      "tags": [
+        "签到",
+        "zo.computer"
+      ],
+      "author": "官方",
+      "sort_order": 20,
+      "path": "check-in/zo.computer保活.json"
     },
     {
       "id": "z-org-register",
       "category": "register",
       "name": "z.org注册",
       "description": "z.org 站点注册流程模板。",
-      "tags": ["注册", "z.org"],
+      "tags": [
+        "注册",
+        "z.org"
+      ],
       "author": "官方",
       "sort_order": 10,
       "path": "register/z.org注册.json"
-    }, 
+    },
     {
       "id": "set-register-info",
       "category": "register",
       "name": "设置注册信息",
       "description": "设置注册信息模板:随机生成用户名、密码、姓名、年龄，如需使用需要去除最后的stop节点。",
-      "tags": ["注册", "片段","随机"],
+      "tags": [
+        "注册",
+        "片段",
+        "随机"
+      ],
       "author": "官方",
       "sort_order": 10,
       "path": "register/设置注册信息.json"
