@@ -622,20 +622,22 @@ const Index = () => {
     }
   }, []);
 
-  const handleOpenTemplateDialog = useCallback(async () => {
+  const handleOpenTemplateDialog = useCallback(() => {
     setTemplateDialogOpen(true);
-    if (templateTab === "remote" && templateItems.length > 0) {
-      return;
-    }
-    if (templateTab === "local" && localTemplateItems.length > 0) {
-      return;
-    }
-    if (templateTab === "remote") {
-      await loadTemplateIndex();
-      return;
-    }
-    await loadLocalTemplateIndex();
-  }, [loadLocalTemplateIndex, loadTemplateIndex, localTemplateItems.length, templateItems.length, templateTab]);
+    // 模板列表加载统一交给下面的 useEffect 处理，避免首开弹窗时
+    // 这里和 effect 同时触发请求，导致重复 GET。
+    // if (templateTab === "remote" && templateItems.length > 0) {
+    //   return;
+    // }
+    // if (templateTab === "local" && localTemplateItems.length > 0) {
+    //   return;
+    // }
+    // if (templateTab === "remote") {
+    //   await loadTemplateIndex();
+    //   return;
+    // }
+    // await loadLocalTemplateIndex();
+  }, []);
 
   const handleImportTemplate = useCallback(async (templateId: string, source: "remote" | "local") => {
     setTemplateImportingId(templateId);
