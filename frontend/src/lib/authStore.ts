@@ -66,6 +66,8 @@ export interface ApiKey {
 
 export const API_KEY_SCOPE_OPTIONS = [
   { value: "flow:read", label: "Read flows" },
+  { value: "flow:create", label: "Create flows" },
+  { value: "flow:update", label: "Update flows" },
   { value: "execution:read", label: "Read executions" },
   { value: "execution:run", label: "Run flows" },
   { value: "execution:cancel", label: "Cancel executions" },

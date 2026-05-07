@@ -15,7 +15,9 @@ from models.database import get_db
 from models.db_models import UserModel, FlowModel, ExecutionModel
 from core.notifications import normalize_notification_rules
 from routers.auth import (
+    API_KEY_SCOPE_FLOW_CREATE,
     API_KEY_SCOPE_FLOW_READ,
+    API_KEY_SCOPE_FLOW_UPDATE,
     get_current_user,
     require_api_key_scope,
 )
@@ -146,7 +148,7 @@ class ExecuteRequest(BaseModel):
 @router.post("", response_model=FlowResponse)
 async def create_flow(
     data: FlowCreate,
-    user: UserModel = Depends(get_current_user),
+    user: UserModel = Depends(require_api_key_scope(API_KEY_SCOPE_FLOW_CREATE)),
     db: Session = Depends(get_db),
 ):
     """创建 Flow"""
@@ -284,7 +286,7 @@ async def get_flow(
 async def update_flow(
     flow_id: str,
     data: FlowUpdate,
-    user: UserModel = Depends(get_current_user),
+    user: UserModel = Depends(require_api_key_scope(API_KEY_SCOPE_FLOW_UPDATE)),
     db: Session = Depends(get_db),
 ):
     """更新 Flow"""

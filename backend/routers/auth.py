@@ -63,12 +63,16 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 security = HTTPBearer(auto_error=False)
 
 API_KEY_SCOPE_FLOW_READ = "flow:read"
+API_KEY_SCOPE_FLOW_CREATE = "flow:create"
+API_KEY_SCOPE_FLOW_UPDATE = "flow:update"
 API_KEY_SCOPE_EXECUTION_READ = "execution:read"
 API_KEY_SCOPE_EXECUTION_RUN = "execution:run"
 API_KEY_SCOPE_EXECUTION_CANCEL = "execution:cancel"
 
 AVAILABLE_API_KEY_SCOPES = {
     API_KEY_SCOPE_FLOW_READ: "读取流程",
+    API_KEY_SCOPE_FLOW_CREATE: "创建流程",
+    API_KEY_SCOPE_FLOW_UPDATE: "更新流程",
     API_KEY_SCOPE_EXECUTION_READ: "读取执行记录",
     API_KEY_SCOPE_EXECUTION_RUN: "执行流程",
     API_KEY_SCOPE_EXECUTION_CANCEL: "取消执行",
