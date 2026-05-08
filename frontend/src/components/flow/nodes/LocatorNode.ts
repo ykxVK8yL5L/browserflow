@@ -9,6 +9,9 @@ const LocatorNode: NodeTypeConfig = {
   color: "node-default",
   description: "Create a reusable locator reference. 默认使用第一个匹配元素；如果需要多个结果请配合 All，指定下标请用 Nth，取最后一个请用 Last。",
   outputType: "locator",
+  inputDefs: [
+    { key: "target", label: "Target Reference", description: "可选。引用上游 locator；留空时从页面定位" },
+  ],
   fields: [
     ...selectorFields,
     {

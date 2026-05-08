@@ -1429,7 +1429,14 @@ async def handle_screenshot_node(
         if not os.path.isabs(filename)
         else filename
     )
-    await ctx.page.screenshot(path=path)
+    locator = resolve_locator_target(ctx, data, normalized_node)
+    has_target_input = (normalized_node.get("resolved_inputs", {}) or {}).get(
+        "target"
+    ) is not None
+    if locator is not None and (has_target_input or data.get("selector")):
+        await locator.screenshot(path=path)
+    else:
+        await ctx.page.screenshot(path=path)
     result.message = f"Screenshot saved to {path}"
     result.data = {
         "path": path,
@@ -1437,6 +1444,11 @@ async def handle_screenshot_node(
         "execution_id": execution_id,
         "node_id": node_id,
         "has_screenshot": True,
+        "scope": (
+            "element"
+            if locator is not None and (has_target_input or data.get("selector"))
+            else "page"
+        ),
     }
     ctx.outputs[node_id] = result.data
 
@@ -1645,7 +1657,11 @@ async def handle_script_node(
 ) -> None:
     script = data.get("script")
     if script:
-        script_result = await ctx.page.evaluate(script)
+        input_value = (normalized_node.get("resolved_inputs", {}) or {}).get("input")
+        if input_value is not None:
+            script_result = await ctx.page.evaluate(script, input_value)
+        else:
+            script_result = await ctx.page.evaluate(script)
         node_id = normalized_node["id"]
         result.message = "Script executed"
         result.data = {"result": script_result}

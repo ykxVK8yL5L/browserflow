@@ -7,6 +7,9 @@ const ExtractNode: NodeTypeConfig = {
   icon: FileText,
   color: "node-extract",
   description: "Extract multiple data points from the page",
+  inputDefs: [
+    { key: "target", label: "Target Reference", description: "可选。引用上游 locator 作为提取范围" },
+  ],
   fields: [
     {
       key: "extractions",

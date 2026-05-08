@@ -8,6 +8,9 @@ const ScriptNode: NodeTypeConfig = {
   color: "node-script",
   description: "Execute JavaScript in the current page context and return the result",
   outputType: "object",
+  inputDefs: [
+    { key: "input", label: "Input Reference", description: "可选。引用上游输出，作为脚本参数 input 传入" },
+  ],
   fields: [
     {
       key: "script",
